@@ -1,55 +1,102 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!-- SYNC IMPACT REPORT:
+Version change: N/A → 1.0.0
+Added sections: Core Principles (6), Technology Stack and Constraints, Development Workflow, Code Quality Standards, Architecture Principles, Governance
+Removed sections: None
+Templates requiring updates:
+- .specify/templates/plan-template.md ✅ updated
+- .specify/templates/spec-template.md ✅ updated
+- .specify/templates/tasks-template.md ✅ updated
+- .specify/templates/commands/*.md ⚠ pending review
+Follow-up TODOs: None
+-->
+# Evolution of Todo - Phase 1: In-Memory Python Console App Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### Spec-Driven Development (SDD)
+All development must start with specs, plans, and tasks. No code shall be written without first creating a spec.md, then plan.md, and tasks.md. Implementation follows the spec-driven workflow using Claude Code CLI agents and skills.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### Minimal Dependencies
+Use Python standard library only for core functionality (e.g., dataclasses for Task models, enum for statuses). No external dependencies except for testing (pytest). Technology stack: Python 3.13+ (strictly no lower versions).
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### Test-First (NON-NEGOTIABLE)
+TDD mandatory: Tests written → User approved → Tests fail → Then implement. Aim for 100% coverage on core functions. Tests must be spec-driven and include edge cases. Red-Green-Refactor cycle strictly enforced.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### Clean Code and Type Safety
+Functions must be small with single-responsibility (SRP). Use descriptive naming (e.g., add_task, list_tasks). Use type hints everywhere (e.g., def add_task(tasks: list[Task], title: str, description: str) -> None). Follow PEP 8 style guidelines strictly.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### In-Memory Architecture
+Data management uses in-memory storage only (no persistence). Use a Task dataclass for tasks (fields: id: int, title: str, description: str, completed: bool). In-memory storage using a list of Task objects. No database or file storage in Phase 1.
 
-### [PRINCIPLE_6_NAME]
+### Console-First User Experience
+Accessibility/Usability: Console outputs must be clear, with numbered IDs for tasks and user-friendly prompts. No web/UI components for Phase 1. Console-only implementation with clear, user-friendly interface.
 
+## Technology Stack and Constraints
 
-[PRINCIPLE__DESCRIPTION]
+Language: Python 3.13+ (strictly no lower versions).
+Libraries: Standard library only (e.g., use dataclasses for Task models, enum for statuses). No external dependencies except for testing (pytest).
+Testing: Use pytest for unit tests. Aim for 100% coverage on core functions. Tests must be spec-driven and include edge cases.
+Tools: Spec-Kit-Plus for SDD workflow (specs, plans, tasks, history). Claude Code CLI for agentic coding, including agents and skills. UV for project management (if needed for virtual envs).
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Constraints:
+No internet access or external APIs.
+Code must be idempotent where applicable (e.g., task operations).
+Follow PEP 8 style guidelines strictly.
+All changes must be atomic, testable, and committed via git with descriptive messages including "Co-authored-by: Claude <noreply@anthropic.com>".
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+## Development Workflow
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+Workflow:
+All features start with a spec.md, then plan.md, tasks.md.
+Use Claude Code agents for autonomous implementation (e.g., console-feature-builder agent).
+Skills for reusable patterns (e.g., console-input-skill for user prompts and validation).
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+Git Practices: Branch per feature (e.g., feature/add-task). Commits must reference specs/tasks.
+Escalation: If ambiguities arise (e.g., spec conflicts), pause and request user input with options.
+
+History and Records:
+Prompt History Records (PHRs) in history/prompts/ for every interaction.
+Architectural Decision Records (ADRs) in history/adr/ for significant decisions (suggest only; user consent required).
+
+## Code Quality Standards
+
+Clean Code Principles:
+Functions should be small, single-responsibility (SRP).
+Use descriptive naming (e.g., add_task, list_tasks).
+Error handling: Use exceptions for invalid inputs (e.g., ValueError for bad task IDs).
+Documentation: Docstrings for all classes/functions, following Google style.
+
+Type Safety: Use type hints everywhere (e.g., def add_task(tasks: list[Task], title: str, description: str) -> None).
+Accessibility/Usability: Console outputs must be clear, with numbered IDs for tasks and user-friendly prompts.
+Performance: O(1) or O(n) operations only; no unnecessary complexity since in-memory.
+Security: No secrets or user data handling in Phase 1, but follow least privilege (e.g., no global variables).
+
+## Architecture Principles
+
+Modular Design: Use a Task dataclass for tasks (fields: id: int, title: str, description: str, completed: bool).
+Data Management: In-memory storage using a list of Task objects.
+Workflow:
+All features start with a spec.md, then plan.md, tasks.md.
+Use Claude Code agents for autonomous implementation (e.g., console-feature-builder agent).
+Skills for reusable patterns (e.g., console-component skill for input/output handling).
+
+Non-Functional Requirements (NFRs):
+Reliability: Handle invalid inputs gracefully with messages.
+Maintainability: Code organized in /src (e.g., main.py, models.py, utils.py).
+Testability: Each task in tasks.md must have acceptance criteria with pytest assertions.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+Spec-Driven Mandate: Refine specs until Claude Code generates correct output. No manual edits to generated code.
+Reusable Intelligence:
+Agents: Define agents like "console-feature-builder" for implementing features autonomously.
+Skills: Use skills for patterns (e.g., "console-input-skill" for user prompts and validation).
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+Evaluation and Validation:
+Definition of Done (DoD): Feature complete when all tasks.md items are checked, tests pass, and console demo works.
+Risks: Over-specification leading to delays; mitigate by iterative refinement.
+Success Metrics: App runs without errors, implements all basic features, and adheres to SDD.
+
+This constitution is immutable unless amended via ADR. All agents/skills must reference it.
+
+**Version**: 1.0.0 | **Ratified**: 2025-12-10 | **Last Amended**: 2025-12-10
