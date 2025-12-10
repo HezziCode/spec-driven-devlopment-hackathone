@@ -1,0 +1,19 @@
+[project]
+name = "console-todo-app"
+description = "A command-line todo application built with Python 3.13 using standard library only. Features in-memory storage with no persistence."
+version = "0.1.0"
+requires-python = "~=3.13"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Todo App Developer", email = "developer@example.com"},
+]
+
+[dependency-groups]
+test = [
+    "pytest ~=7.0",
+]
+
+[build-system]
+requires = ["setuptools ~=68.0", "wheel ~=0.4"]
+build-backend = "setuptools.build_meta"
