@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 from .models import Task
 
 
@@ -43,7 +43,7 @@ def validate_task_title(title: str) -> str:
     return stripped_title
 
 
-def validate_task_description(description: Optional[str]) -> Optional[str]:
+def validate_task_description(description: str) -> str:
     """
     Validate a task description.
 
@@ -81,7 +81,7 @@ def validate_task_id(task_id: int) -> None:
         raise ValueError("Task ID must be a positive integer")
 
 
-def find_task_by_id(tasks: List[Task], task_id: int) -> Optional[Task]:
+def find_task_by_id(tasks: List[Task], task_id: int) -> Task:
     """
     Find a task by its ID.
 
