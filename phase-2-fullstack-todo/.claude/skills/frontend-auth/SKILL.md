@@ -440,4 +440,3 @@ const handleSubmit = async (e: React.FormEvent) => {
 8. ✅ Validate email with `isValidEmail()` utility
 9. ✅ Validate password with `getPasswordStrength()` utility
 10. ✅ Always check for `window` before accessing localStorage
-

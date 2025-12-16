@@ -49,10 +49,6 @@ const CursorGlow = ({ isDarkMode, mousePosition }) => (
 );
 
 
-
-
-
-
 // --- Main Application Component ---
 export default function App() {
   const [userId, setUserId] = useState(null);

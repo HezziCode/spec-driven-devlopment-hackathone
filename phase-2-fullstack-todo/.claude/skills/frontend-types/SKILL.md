@@ -388,4 +388,3 @@ async getCategories(
 8. ✅ Use descriptive names (EntityFormData, EntityQueryParams)
 9. ✅ Include all required fields from backend
 10. ✅ Provide default type parameters for generics (`<T = unknown>`)
-
