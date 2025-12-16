@@ -1,0 +1,64 @@
+[project]
+name = "phase2-todo-backend"
+version = "0.1.0"
+description = "Backend API for Phase 2 Full-Stack Todo Web App"
+authors = [
+    {name = "Huzaifa", email = "huzaifasys@gmail.com"}
+]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "sqlmodel>=0.0.16",
+    "pydantic>=2.5.0",
+    "better-auth>=0.0.1-b11",
+    "python-jose>=3.3.0",
+    "passlib>=1.7.4",
+    "python-multipart>=0.0.6",
+    "pytest>=7.4.0",
+    "httpx>=0.25.0",
+    "python-dotenv>=1.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "httpx>=0.25.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0"
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["routes", "schemas", "services", "middleware", "utils", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+]
+ignore = [
+    "E501",  # Line too long (handled by black)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]
+known-third-party = ["fastapi", "sqlmodel", "pydantic", "better_auth", "uvicorn", "pytest"]
