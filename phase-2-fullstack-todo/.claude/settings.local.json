@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv venv)",
+      "Bash(curl -s --max-time 15 http://127.0.0.1:3000/tasks)",
+      "Bash(curl -s http://127.0.0.1:8000/health)",
+      "Bash(curl -s --max-time 15 http://127.0.0.1:3001/)",
+      "Bash(cat package.json)",
+      "Bash(npx next dev)",
+      "Bash(curl -s --max-time 10 http://127.0.0.1:3002/)",
+      "Bash(curl -s --max-time 10 http://localhost:3002/tasks)",
+      "Bash(cat /tmp/claude/tasks/b0aa159.output)",
+      "Bash(cat /tmp/claude/tasks/bddd2df.output)",
+      "Bash(curl -s --max-time 15 http://localhost:3000/)",
+      "Bash(curl -s --max-time 10 http://localhost:3000/)",
+      "Bash(cat /tmp/claude/tasks/bc42323.output)",
+      "Bash(curl -s --max-time 10 http://localhost:3000/tasks)",
+      "Bash(timeout 10 bash -c '</dev/tcp/localhost/3000 2>/dev/null && echo \"\"Port 3000 is open\"\" || echo \"\"Port 3000 is closed\"\"')",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-pnpm)",
+      "Bash(curl -s --max-time 15 http://localhost:3000/tasks)",
+      "Bash(curl -s --max-time 5 http://localhost:8000/health)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)",
+      "Bash(sudo rm -rf frontend/node_modules frontend/package-lock.json)",
+      "Bash(cat /tmp/claude/tasks/bdf1d6b.output)",
+      "Bash(npx next dev -p 3003)",
+      "Bash(cat /tmp/claude/tasks/bcc59e0.output)",
+      "mcp__github__create_or_update_file"
+    ]
+  }
+}
