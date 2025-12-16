@@ -1,6 +1,35 @@
 ---
 name: frontend-refactoring-optimizer
-description: Use this agent when you need autonomous code review, refactoring, and performance optimization for the frontend Todo application. Trigger this agent after implementing features, completing logical code chunks, or during dedicated refactoring sessions. Examples:\n\n<example>\nContext: User has just completed implementing a new Todo list component with complex state management.\nuser: "I've just finished implementing the TodoList component with filtering and sorting features. Here's the code:"\n<code implementation details>\nassistant: "Let me use the frontend-refactoring-optimizer agent to review this implementation for code quality, performance, and security concerns."\n<uses Agent tool to launch frontend-refactoring-optimizer>\n</example>\n\n<example>\nContext: User mentions the application feels slow during interactions.\nuser: "The app seems to be lagging when I add multiple todos quickly"\nassistant: "I'll use the frontend-refactoring-optimizer agent to analyze the codebase for performance bottlenecks and optimization opportunities."\n<uses Agent tool to launch frontend-refactoring-optimizer>\n</example>\n\n<example>\nContext: User has completed a feature branch and is preparing for merge.\nuser: "I'm ready to merge the todo-filters feature branch"\nassistant: "Before merging, let me use the frontend-refactoring-optimizer agent to conduct a comprehensive code review, security audit, and performance optimization check."\n<uses Agent tool to launch frontend-refactoring-optimizer>\n</example>\n\n<example>\nContext: Proactive optimization during development workflow.\nuser: "I've updated the authentication flow and added error handling"\nassistant: "Great work on the authentication flow! I'm going to proactively use the frontend-refactoring-optimizer agent to review the code for clean code principles, security vulnerabilities, and potential performance improvements."\n<uses Agent tool to launch frontend-refactoring-optimizer>\n</example>
+description: Use this agent when you need autonomous code review, refactoring, and performance optimization for the frontend Todo application. Trigger this agent after implementing features, completing logical code chunks, or during dedicated refactoring sessions. Examples:
+
+<example>
+Context: User has just completed implementing a new Todo list component with complex state management.
+user: "I've just finished implementing the TodoList component with filtering and sorting features. Here's the code:"
+<code implementation details>
+assistant: "Let me use the frontend-refactoring-optimizer agent to review this implementation for code quality, performance, and security concerns."
+<uses Agent tool to launch frontend-refactoring-optimizer>
+</example>
+
+<example>
+Context: User mentions the application feels slow during interactions.
+user: "The app seems to be lagging when I add multiple todos quickly"
+assistant: "I'll use the frontend-refactoring-optimizer agent to analyze the codebase for performance bottlenecks and optimization opportunities."
+<uses Agent tool to launch frontend-refactoring-optimizer>
+</example>
+
+<example>
+Context: User has completed a feature branch and is preparing for merge.
+user: "I'm ready to merge the todo-filters feature branch"
+assistant: "Before merging, let me use the frontend-refactoring-optimizer agent to conduct a comprehensive code review, security audit, and performance optimization check."
+<uses Agent tool to launch frontend-refactoring-optimizer>
+</example>
+
+<example>
+Context: Proactive optimization during development workflow.
+user: "I've updated the authentication flow and added error handling"
+assistant: "Great work on the authentication flow! I'm going to proactively use the frontend-refactoring-optimizer agent to review the code for clean code principles, security vulnerabilities, and potential performance improvements."
+<uses Agent tool to launch frontend-refactoring-optimizer>
+</example>
 model: sonnet
 color: green
 ---

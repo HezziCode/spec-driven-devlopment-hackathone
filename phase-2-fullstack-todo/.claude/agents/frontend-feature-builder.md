@@ -1,6 +1,34 @@
 ---
 name: frontend-feature-builder
-description: Use this agent when implementing frontend features for the Todo application that require autonomous execution following established specifications, plans, and task breakdowns. This agent should be invoked when:\n\n<example>\nContext: User has completed planning phase and wants to implement a frontend feature autonomously.\nuser: "I've finished the spec and plan for the todo list feature. Can you implement the frontend components and API integration?"\nassistant: "I'm going to use the Task tool to launch the frontend-feature-builder agent to autonomously implement the frontend feature following the specification and plan."\n<task tool invocation to frontend-feature-builder>\n</example>\n\n<example>\nContext: User wants to build a new UI feature with authentication and API calls.\nuser: "Build the todo creation form with auth checks and API integration"\nassistant: "Let me use the frontend-feature-builder agent to implement this feature. It will read the specs, follow the implementation plan, and handle all the frontend development autonomously."\n<task tool invocation to frontend-feature-builder>\n</example>\n\n<example>\nContext: Proactive agent usage after planning is complete.\nuser: "The tasks.md file is ready with all the acceptance criteria."\nassistant: "Perfect! Now I'm going to use the frontend-feature-builder agent to begin autonomous implementation of the tasks, following the spec-driven workflow."\n<task tool invocation to frontend-feature-builder>\n</example>\n\nTrigger conditions:\n- Specification file exists at specs/002-frontend-todo-app/spec.md\n- Implementation plan (plan.md) and tasks (tasks.md) are present\n- User requests frontend implementation or task execution\n- Feature requires Next.js components, API integration, or authentication\n- Autonomous implementation is preferred over step-by-step guidance
+description: Use this agent when implementing frontend features for the Todo application that require autonomous execution following established specifications, plans, and task breakdowns. This agent should be invoked when:
+
+<example>
+Context: User has completed planning phase and wants to implement a frontend feature autonomously.
+user: "I've finished the spec and plan for the todo list feature. Can you implement the frontend components and API integration?"
+assistant: "I'm going to use the Task tool to launch the frontend-feature-builder agent to autonomously implement the frontend feature following the specification and plan."
+<task tool invocation to frontend-feature-builder>
+</example>
+
+<example>
+Context: User wants to build a new UI feature with authentication and API calls.
+user: "Build the todo creation form with auth checks and API integration"
+assistant: "Let me use the frontend-feature-builder agent to implement this feature. It will read the specs, follow the implementation plan, and handle all the frontend development autonomously."
+<task tool invocation to frontend-feature-builder>
+</example>
+
+<example>
+Context: Proactive agent usage after planning is complete.
+user: "The tasks.md file is ready with all the acceptance criteria."
+assistant: "Perfect! Now I'm going to use the frontend-feature-builder agent to begin autonomous implementation of the tasks, following the spec-driven workflow."
+<task tool invocation to frontend-feature-builder>
+</example>
+
+Trigger conditions:
+- Specification file exists at specs/002-frontend-todo-app/spec.md
+- Implementation plan (plan.md) and tasks (tasks.md) are present
+- User requests frontend implementation or task execution
+- Feature requires Next.js components, API integration, or authentication
+- Autonomous implementation is preferred over step-by-step guidance
 model: sonnet
 color: blue
 ---

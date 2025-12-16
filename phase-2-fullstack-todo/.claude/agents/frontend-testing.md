@@ -1,6 +1,33 @@
 ---
 name: frontend-testing
-description: Use this agent when you need comprehensive test coverage for frontend components, pages, or features in the Todo application. This agent should be invoked after frontend code implementation is complete and you need to verify functionality through multiple testing layers (unit, integration, E2E, accessibility, performance). Examples:\n\n<example>\nContext: User has just implemented a TodoList component with add, edit, delete, and filter functionality.\nuser: "I've finished implementing the TodoList component with CRUD operations and filtering. Can you help me write comprehensive tests for it?"\nassistant: "I'm going to use the Task tool to launch the frontend-testing agent to create comprehensive test coverage for your TodoList component."\n<commentary>\nThe user has completed a frontend component implementation and needs testing. The frontend-testing agent will analyze the component, read specifications and testing requirements, then autonomously create unit tests (React Testing Library), integration tests for component interactions, E2E tests (Playwright) for user journeys, accessibility tests (axe-core), and performance tests (Lighthouse).\n</commentary>\n</example>\n\n<example>\nContext: User has implemented several pages for the Todo app and wants to ensure quality before deployment.\nuser: "I've built the main Todo pages - the dashboard, task detail view, and settings page. I need to make sure they're properly tested before we deploy."\nassistant: "I'll use the frontend-testing agent to create comprehensive test suites for all three pages, covering functionality, accessibility, and performance."\n<commentary>\nMultiple pages need testing. The frontend-testing agent will read the specifications, analyze each page, and create appropriate test coverage including E2E tests for critical user journeys across pages, accessibility compliance verification, and performance benchmarks.\n</commentary>\n</example>\n\n<example>\nContext: Code review reveals insufficient test coverage after a feature implementation.\nuser: "The code looks good functionally, but we're only at 45% test coverage for the new filter feature. We need to get that up to our 80% standard."\nassistant: "I'm launching the frontend-testing agent to analyze the filter feature and create the necessary tests to reach our 80% coverage target."\n<commentary>\nTest coverage is below project standards. The frontend-testing agent will autonomously identify gaps in test coverage, determine which test types are needed (unit/integration/E2E), and write the appropriate tests following AAA pattern.\n</commentary>\n</example>
+description: Use this agent when you need comprehensive test coverage for frontend components, pages, or features in the Todo application. This agent should be invoked after frontend code implementation is complete and you need to verify functionality through multiple testing layers (unit, integration, E2E, accessibility, performance). Examples:
+
+<example>
+Context: User has just implemented a TodoList component with add, edit, delete, and filter functionality.
+user: "I've finished implementing the TodoList component with CRUD operations and filtering. Can you help me write comprehensive tests for it?"
+assistant: "I'm going to use the Task tool to launch the frontend-testing agent to create comprehensive test coverage for your TodoList component."
+<commentary>
+The user has completed a frontend component implementation and needs testing. The frontend-testing agent will analyze the component, read specifications and testing requirements, then autonomously create unit tests (React Testing Library), integration tests for component interactions, E2E tests (Playwright) for user journeys, accessibility tests (axe-core), and performance tests (Lighthouse).
+</commentary>
+</example>
+
+<example>
+Context: User has implemented several pages for the Todo app and wants to ensure quality before deployment.
+user: "I've built the main Todo pages - the dashboard, task detail view, and settings page. I need to make sure they're properly tested before we deploy."
+assistant: "I'll use the frontend-testing agent to create comprehensive test suites for all three pages, covering functionality, accessibility, and performance."
+<commentary>
+Multiple pages need testing. The frontend-testing agent will read the specifications, analyze each page, and create appropriate test coverage including E2E tests for critical user journeys across pages, accessibility compliance verification, and performance benchmarks.
+</commentary>
+</example>
+
+<example>
+Context: Code review reveals insufficient test coverage after a feature implementation.
+user: "The code looks good functionally, but we're only at 45% test coverage for the new filter feature. We need to get that up to our 80% standard."
+assistant: "I'm launching the frontend-testing agent to analyze the filter feature and create the necessary tests to reach our 80% coverage target."
+<commentary>
+Test coverage is below project standards. The frontend-testing agent will autonomously identify gaps in test coverage, determine which test types are needed (unit/integration/E2E), and write the appropriate tests following AAA pattern.
+</commentary>
+</example>
 model: sonnet
 color: red
 ---
