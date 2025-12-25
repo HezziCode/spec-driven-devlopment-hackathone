@@ -1,15 +1,26 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { IBM_Plex_Sans, DM_Sans } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+// IBM Plex Sans for UI/body text - extremely legible and professional
+const ibmPlexSans = IBM_Plex_Sans({
+  variable: "--font-ibm-plex-sans",
   subsets: ["latin"],
+  weight: ["100", "200", "300", "400", "500", "600", "700"],
   display: "swap",
 });
 
+// DM Sans for headings - clean and distinctive but professional
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+  style: ["normal"],
+});
+
 export const metadata: Metadata = {
-  title: "TaskWave - Modern Task Management",
+  title: "TaskFlow - Modern Task Management",
   description: "The minimalist, modern way to manage your tasks",
 };
 
@@ -19,9 +30,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${inter.variable} antialiased`}
+        className={`${ibmPlexSans.variable} ${dmSans.variable} antialiased bg-slate-900`}
       >
         {children}
       </body>

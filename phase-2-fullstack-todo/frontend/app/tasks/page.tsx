@@ -1,6 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+// Main Tasks Dashboard page
+// Shows user tasks with filtering, creation, and management capabilities
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { ListTodo, LogOut, ArrowRight, Bell, Command, Flame, Target } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import TaskCard from '@/components/TaskCard';
+import TaskForm from '@/components/TaskForm';
+import TaskFilters from '@/components/TaskFilters';
+import NeuralBackground from '@/components/NeuralBackground';
+import PageRouteTransitionProvider from '@/components/providers/PageRouteTransitionProvider';
 
 // Define the Task interface
 interface Task {
@@ -15,357 +27,425 @@ interface Task {
   updated_at: string;
 }
 
-export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [newTask, setNewTask] = useState({
-    title: '',
-    description: '',
-    priority: 'medium' as 'low' | 'medium' | 'high' | 'critical',
-    tags: [] as string[]
-  });
-  const [tagInput, setTagInput] = useState('');
+// Define the Notification interface
+interface Notification {
+  id: string;
+  type: 'system' | 'task' | 'reminder';
+  title: string;
+  message: string;
+  read: boolean;
+  timestamp: string;
+  user_id: string;
+}
 
-  // In a real app, this would come from auth context
-  const userId = typeof window !== 'undefined' ? localStorage.getItem('user_id') || 'test-user-id' : 'test-user-id';
 
-  // Load tasks from the backend API
-  useEffect(() => {
-    fetchTasks();
+// --- Custom Styles for Theme & Typography ---
+const GlobalStyles = () => (
+  <style>{`
+    body {
+      transition: background-color 0.3s ease-in-out;
+      background-color: #0f172a; /* Dark background */
+    }
+
+    /* Gradient Text for Landing Page Headline */
+    .gradient-text-teal {
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      background-image: linear-gradient(to right, #2dd4bf, #06b6d4, #0e7490); /* Teal-Cyan blend */
+      transition: all 0.3s ease-in-out;
+    }
+  `}</style>
+);
+
+// --- Global Cursor Follow Glow Component ---
+// This component displays the subtle glow animation that follows the mouse position globally.
+const CursorGlow = ({ mousePosition }: { mousePosition: { x: number; y: number } }) => (
+    <div
+        className="fixed inset-0 z-0 pointer-events-none transition-opacity duration-300"
+        style={{
+            // Dynamic background with radial gradient following the mouse position relative to the viewport
+            background: `radial-gradient(450px at ${mousePosition.x}px ${mousePosition.y}px, rgba(6, 182, 212, 0.1), transparent 80%)`,
+            transition: 'background 0.05s ease-out',
+        }}
+    />
+);
+
+// Mock initial tasks data
+const initialTasks: Task[] = [
+  {
+    id: '1',
+    title: 'Complete project proposal',
+    description: 'Finish the project proposal document and send for review',
+    completed: false,
+    priority: 'high',
+    tags: ['work', 'important'],
+    user_id: 'demo-user',
+    created_at: '2025-12-17T10:00:00Z',
+    updated_at: '2025-12-17T10:00:00Z'
+  },
+  {
+    id: '2',
+    title: 'Schedule team meeting',
+    description: 'Schedule a team meeting for next week to discuss progress',
+    completed: true,
+    priority: 'medium',
+    tags: ['meeting', 'team'],
+    user_id: 'demo-user',
+    created_at: '2025-12-17T09:00:00Z',
+    updated_at: '2025-12-17T09:30:00Z'
+  },
+  {
+    id: '3',
+    title: 'Research new technologies',
+    description: 'Look into new technologies that could improve our workflow',
+    completed: false,
+    priority: 'low',
+    tags: ['research', 'learning'],
+    user_id: 'demo-user',
+    created_at: '2025-12-17T08:00:00Z',
+    updated_at: '2025-12-17T08:00:00Z'
+  }
+];
+
+// Mock notifications data
+const initialNotifications: Notification[] = [
+  {
+    id: '1',
+    type: 'system',
+    title: 'System Update',
+    message: 'New features have been added to the dashboard',
+    read: false,
+    timestamp: '2025-12-17T08:00:00Z',
+    user_id: 'demo-user'
+  },
+  {
+    id: '2',
+    type: 'task',
+    title: 'Task Reminder',
+    message: 'You have 3 pending tasks for today',
+    read: false,
+    timestamp: '2025-12-17T09:00:00Z',
+    user_id: 'demo-user'
+  }
+];
+
+
+const TasksPage = () => {
+  // State for tasks and filters
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'low' | 'medium' | 'high' | 'critical'>('all');
+  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+
+  // Always in dark mode now
+  const isDarkMode = true;
+
+  // Global Mouse Position State and Handler
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    // Track mouse position relative to the viewport for global glow
+    setMousePosition({
+      x: e.clientX,
+      y: e.clientY,
+    });
   }, []);
 
-  const fetchTasks = async () => {
-    try {
-      setLoading(true);
-      setError(null);
 
-      // In a real app, we would make an authenticated API call to fetch tasks
-      // For now, we'll simulate with mock data
-      const mockTasks: Task[] = [
-        {
-          id: '1',
-          title: 'Sample Task',
-          description: 'This is a sample task to demonstrate the UI',
-          completed: false,
-          priority: 'medium',
-          tags: ['sample', 'demo'],
-          user_id: userId,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-      ];
+  // Set up global mouse tracking
+  useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [handleMouseMove]);
 
-      setTasks(mockTasks);
-    } catch (err) {
-      setError('Failed to load tasks. Please try again later.');
-      console.error('Error fetching tasks:', err);
-    } finally {
-      setLoading(false);
-    }
+  // User data (mock for now)
+  const mockUser = {
+    id: 'demo-user',
+    username: 'Demo User',
+    email: 'demo@example.com'
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setNewTask(prev => ({ ...prev, [name]: value }));
+  // Add a new task
+  const addTask = (title: string, description: string, priority: 'low' | 'medium' | 'high' | 'critical', tags: string[]) => {
+    const newTask: Task = {
+      id: Date.now().toString(),
+      title,
+      description,
+      completed: false,
+      priority,
+      tags,
+      user_id: mockUser.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    setTasks([newTask, ...tasks]);
   };
 
-  const handleTagAdd = () => {
-    if (tagInput.trim() && !newTask.tags.includes(tagInput.trim())) {
-      setNewTask(prev => ({
-        ...prev,
-        tags: [...prev.tags, tagInput.trim()]
-      }));
-      setTagInput('');
-    }
-  };
-
-  const handleTagRemove = (tagToRemove: string) => {
-    setNewTask(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!newTask.title.trim()) {
-      setError('Title is required');
-      return;
-    }
-
-    try {
-      // In a real app, we would send this to the backend API
-      console.log('Creating task:', { ...newTask, user_id: userId });
-
-      // Mock API call
-      const newTaskWithId: Task = {
-        id: Math.random().toString(36).substring(7),
-        ...newTask,
-        completed: false,
-        user_id: userId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      setTasks(prev => [newTaskWithId, ...prev]);
-
-      // Reset form
-      setNewTask({
-        title: '',
-        description: '',
-        priority: 'medium',
-        tags: []
-      });
-      setTagInput('');
-      setError(null);
-    } catch (err) {
-      setError('Failed to create task. Please try again.');
-      console.error('Error creating task:', err);
-    }
-  };
-
-  const toggleTaskCompletion = async (taskId: string) => {
-    try {
-      // In a real app, we would send this to the backend API
-      setTasks(prev => prev.map(task =>
-        task.id === taskId ? { ...task, completed: !task.completed } : task
+  // Toggle task completion - Remove completed tasks from UI immediately
+  const toggleTaskCompletion = (id: string, completed: boolean) => {
+    if (completed) {
+      // If marking as completed, remove the task from the UI
+      setTasks(tasks.filter(task => task.id !== id));
+    } else {
+      // If marking as not completed, update the task status
+      setTasks(tasks.map(task =>
+        task.id === id ? { ...task, completed } : task
       ));
-    } catch (err) {
-      setError('Failed to update task. Please try again.');
-      console.error('Error updating task:', err);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-        <div className="flex min-h-screen w-full max-w-4xl flex-col py-8 px-4 bg-white dark:bg-black">
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
-            <p className="text-lg text-zinc-600 dark:text-zinc-400">Loading tasks...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Delete a task
+  const deleteTask = (id: string) => {
+    setTasks(tasks.filter(task => task.id !== id));
+  };
+
+  // Filter tasks based on current filters
+  const filteredTasks = tasks.filter(task => {
+    const statusMatch = statusFilter === 'all' ||
+                      (statusFilter === 'active' && !task.completed) ||
+                      (statusFilter === 'completed' && task.completed);
+
+    const priorityMatch = priorityFilter === 'all' || task.priority === priorityFilter;
+
+    return statusMatch && priorityMatch;
+  });
 
   return (
-    <div className="flex min-h-screen bg-zinc-50 font-sans dark:bg-black">
-      <div className="flex min-h-screen w-full max-w-4xl flex-col py-8 px-4 bg-white dark:bg-black mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-black dark:text-zinc-50 mb-2">My Tasks</h1>
-          <p className="text-zinc-600 dark:text-zinc-400">Manage your todo list efficiently</p>
-        </div>
+    <PageRouteTransitionProvider>
+      <div className="min-h-screen w-full bg-slate-900/40 transition-colors duration-300 relative overflow-x-hidden">
+        <GlobalStyles />
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-md">
-            {error}
-          </div>
-        )}
+        {/* Neural Background - positioned just behind content but above base background */}
+        <NeuralBackground />
 
-        {/* Task Creation Form */}
-        <div className="mb-8 p-6 bg-white dark:bg-zinc-900 rounded-lg shadow-md border border-zinc-200 dark:border-zinc-800">
-          <h2 className="text-xl font-semibold text-black dark:text-zinc-50 mb-4">Add New Task</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label htmlFor="title" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  Title *
-                </label>
-                <input
-                  type="text"
-                  id="title"
-                  name="title"
-                  value={newTask.title}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-zinc-800 text-black dark:text-zinc-200"
-                  placeholder="Enter task title"
+        {/* Global Cursor Glow rendered as a fixed element */}
+        <CursorGlow mousePosition={mousePosition} />
+
+        <div className="relative z-10 w-full max-w-full">
+          <Navbar
+            userId={mockUser.id}
+            handleAuthAction={() => {}}
+            setView={() => {}}
+            notifications={notifications}
+            onMarkAllRead={() => setNotifications(notifications.map(n => ({ ...n, read: true })))}
+            onNotificationClick={(id) => {
+              setNotifications(notifications.map(n =>
+                n.id === id ? { ...n, read: true } : n
+              ));
+            }}
+          />
+
+          <main className="w-full px-4 py-8">
+            <div className="max-w-6xl mx-auto w-full">
+              {/* Premium Animated Hero Section */}
+              <motion.section
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="relative w-full flex flex-col items-center justify-center text-center overflow-visible"
+              >
+                {/* Premium background elements */}
+                <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-teal-500/5 to-cyan-500/10 rounded-full blur-[120px] -mt-24 -ml-24" />
+                <div className="absolute bottom-0 right-0 w-64 h-64 bg-gradient-to-br from-cyan-500/5 to-blue-500/10 rounded-full blur-[120px] -mb-24 -mr-24" />
+                <div
+                  className="absolute inset-0 opacity-[0.02]"
+                  style={{
+                    backgroundImage: 'radial-gradient(circle at 25% 25%, #2dd4bf 0.8px, transparent 0.8px), radial-gradient(circle at 75% 75%, #06b6d4 0.8px, transparent 0.8px)',
+                    backgroundSize: '30px 30px'
+                  }}
                 />
-              </div>
 
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={newTask.description}
-                  onChange={handleInputChange}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-zinc-800 text-black dark:text-zinc-200"
-                  placeholder="Enter task description (optional)"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="priority" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    Priority
-                  </label>
-                  <select
-                    id="priority"
-                    name="priority"
-                    value={newTask.priority}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-zinc-800 text-black dark:text-zinc-200"
+                {/* Inner content container */}
+                <div className="relative z-10 space-y-6 max-w-4xl w-full">
+                  {/* Status tag */}
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                    className="inline-flex items-center space-x-2.5 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/15 to-teal-500/15 border border-cyan-500/30 backdrop-blur-sm shadow-lg shadow-cyan-500/10"
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
-                  </select>
+                    <Command size={14} className="text-cyan-400" />
+                    <span className="text-sm font-semibold text-slate-200">Mission Control Active</span>
+                  </motion.div>
+
+                  {/* Premium animated heading */}
+                  <motion.h1
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-tight text-white max-w-3xl mx-auto relative break-words"
+                  >
+                    <span className="relative inline-block">
+                      Conquer Your Tasks<br />
+                      Master Your Flow Today
+                      {/* Curved SVG underline */}
+                      <svg
+                        className="absolute left-0 -bottom-3 w-full h-3 pointer-events-none sm:-bottom-4 sm:h-4"
+                        viewBox="0 0 100 10"
+                        preserveAspectRatio="none"
+                      >
+                        <path
+                          d="M2,5 Q50,10 98,5"
+                          stroke="url(#taskflow-grad)"
+                          strokeWidth="2"
+                          fill="none"
+                          strokeLinecap="round"
+                          opacity="0.8"
+                        />
+                        <defs>
+                          <linearGradient id="taskflow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#5eead4" />
+                            <stop offset="100%" stopColor="#67e8f9" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                    </span>
+                  </motion.h1>
+
+                  {/* Premium animated paragraph */}
+                  <motion.p
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-base md:text-lg text-slate-300/90 font-medium max-w-2xl mx-auto leading-relaxed mb-6 sm:mb-8"
+                  >
+                    Your streamlined task dashboard. Focus on what matters with our premium productivity suite.
+                  </motion.p>
+
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    Tags
-                  </label>
-                  <div className="flex">
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd())}
-                      className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-l-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-zinc-800 text-black dark:text-zinc-200"
-                      placeholder="Add a tag and press Enter"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleTagAdd}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-r-md hover:bg-indigo-700 transition-colors duration-200 text-sm"
-                    >
-                      Add
-                    </button>
-                  </div>
+                {/* Add the premium shine animation styles */}
+                <style jsx global>{`
+                  @keyframes premium-shine {
+                    0%, 100% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                  }
+                `}</style>
+              </motion.section>
 
-                  {/* Display current tags */}
-                  {newTask.tags.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {newTask.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300"
+              {/* Task Creation Form - Positioned as Primary Element */}
+              <div className="mb-8 bg-slate-800/20 backdrop-blur-sm rounded-xl p-6 border border-slate-700/20">
+                <h2 className="text-2xl font-bold text-white mb-4">Create New Task</h2>
+                <TaskForm onSubmit={addTask} />
+              </div>
+
+              {/* Premium Stats Section */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
+                <div className="bg-slate-800/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 text-center border border-slate-700/20">
+                  <h3 className="text-xl sm:text-2xl font-bold text-cyan-400">{tasks.length}</h3>
+                  <p className="text-xs sm:text-sm text-slate-400">Total Tasks</p>
+                </div>
+                <div className="bg-slate-800/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 text-center border border-slate-700/20">
+                  <h3 className="text-xl sm:text-2xl font-bold text-emerald-400">
+                    {tasks.filter(t => t.completed).length}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-400">Completed</p>
+                </div>
+                <div className="bg-slate-800/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 text-center border border-slate-700/20">
+                  <h3 className="text-xl sm:text-2xl font-bold text-amber-400">
+                    {tasks.filter(t => !t.completed).length}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-400">Pending</p>
+                </div>
+                <div className="bg-slate-800/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 text-center border border-slate-700/20">
+                  <h3 className="text-xl sm:text-2xl font-bold text-rose-400">
+                    {tasks.filter(t => t.priority === 'high' && !t.completed).length}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-400">High Priority</p>
+                </div>
+              </div>
+
+              {/* Task Filters */}
+              <div className="mb-8 bg-slate-800/20 backdrop-blur-sm rounded-xl p-4 border border-slate-700/20">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'completed')}
+                      className="w-full bg-slate-700/40 backdrop-blur-sm border border-slate-600/50 rounded-lg px-4 py-2.5 text-sm text-slate-300 focus:ring-2 focus:ring-cyan-500 outline-none appearance-none cursor-pointer"
+                    >
+                      <option value="all">All Tasks</option>
+                      <option value="active">Active</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Priority</label>
+                    <select
+                      value={priorityFilter}
+                      onChange={(e) => setPriorityFilter(e.target.value as 'all' | 'low' | 'medium' | 'high' | 'critical')}
+                      className="w-full bg-slate-700/40 backdrop-blur-sm border border-slate-600/50 rounded-lg px-4 py-2.5 text-sm text-slate-300 focus:ring-2 focus:ring-cyan-500 outline-none appearance-none cursor-pointer"
+                    >
+                      <option value="all">All Priorities</option>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Task List */}
+              <div className="mb-12 bg-slate-800/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 border border-slate-700/20">
+                <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">
+                  {statusFilter === 'all' ? 'All Tasks' : statusFilter === 'active' ? 'Active Tasks' : 'Completed Tasks'}
+                </h2>
+
+                {filteredTasks.length === 0 ? (
+                  <div className="text-center py-8 sm:py-12">
+                    <div className="text-4xl sm:text-5xl mb-3 sm:mb-4">📝</div>
+                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">No tasks found</h3>
+                    <p className="text-sm sm:text-gray-400">
+                      {statusFilter === 'completed'
+                        ? "You haven't completed any tasks yet."
+                        : "You're all caught up! Add a new task to get started."}
+                    </p>
+                  </div>
+                ) : (
+                  <AnimatePresence>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                      {filteredTasks.map(task => (
+                        <motion.div
+                          layout
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8, height: 0 }}
+                          transition={{ duration: 0.3 }}
+                          key={task.id}
                         >
-                          {tag}
-                          <button
-                            type="button"
-                            onClick={() => handleTagRemove(tag)}
-                            className="ml-1.5 flex-shrink-0 h-4 w-4 rounded-full inline-flex items-center justify-center text-indigo-600 hover:bg-indigo-200 hover:text-indigo-800 dark:text-indigo-200 dark:hover:bg-indigo-700 dark:hover:text-indigo-100"
-                          >
-                            <span className="sr-only">Remove tag</span>
-                            ×
-                          </button>
-                        </span>
+                          <TaskCard
+                            id={task.id}
+                            title={task.title}
+                            description={task.description}
+                            completed={task.completed}
+                            priority={task.priority}
+                            tags={task.tags}
+                            createdAt={task.created_at}
+                            updatedAt={task.updated_at}
+                            userId={task.user_id}
+                            onToggleComplete={toggleTaskCompletion}
+                            onDelete={deleteTask}
+                          />
+                        </motion.div>
                       ))}
                     </div>
-                  )}
-                </div>
+                  </AnimatePresence>
+                )}
               </div>
+
             </div>
+          </main>
 
-            <div className="mt-6">
-              <button
-                type="submit"
-                className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-lg font-medium"
-              >
-                Add Task
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Task List */}
-        <div>
-          <h2 className="text-xl font-semibold text-black dark:text-zinc-50 mb-4">Your Tasks</h2>
-
-          {tasks.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-zinc-600 dark:text-zinc-400">No tasks yet. Add your first task above!</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className={`p-4 rounded-lg border shadow-sm ${
-                    task.completed
-                      ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
-                      : 'bg-white border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700'
-                  }`}
-                >
-                  <div className="flex items-start">
-                    <input
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={() => toggleTaskCompletion(task.id)}
-                      className="mt-1 h-5 w-5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <div className="ml-3 flex-1">
-                      <h3 className={`text-lg font-medium ${
-                        task.completed
-                          ? 'text-zinc-500 line-through dark:text-zinc-500'
-                          : 'text-zinc-900 dark:text-zinc-100'
-                      }`}>
-                        {task.title}
-                      </h3>
-
-                      {task.description && (
-                        <p className="mt-1 text-zinc-600 dark:text-zinc-400">
-                          {task.description}
-                        </p>
-                      )}
-
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          task.priority === 'low' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                          task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
-                          task.priority === 'high' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
-                          'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                        }`}>
-                          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} Priority
-                        </span>
-
-                        {task.completed && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                            Completed
-                          </span>
-                        )}
-
-                        {!task.completed && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-300">
-                            Pending
-                          </span>
-                        )}
-                      </div>
-
-                      {task.tags.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {task.tags.map((tag, index) => (
-                            <span
-                              key={index}
-                              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300"
-                            >
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
-                        Created: {new Date(task.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <Footer setView={() => {}} />
         </div>
       </div>
-    </div>
+    </PageRouteTransitionProvider>
   );
-}
+};
+
+export default TasksPage;

@@ -13,11 +13,14 @@ dependencies = [
     "pydantic>=2.5.0",
     "better-auth>=0.0.1-b11",
     "python-jose>=3.3.0",
-    "passlib>=1.7.4",
+    "passlib[bcrypt]>=1.7.4",
     "python-multipart>=0.0.6",
     "pytest>=7.4.0",
     "httpx>=0.25.0",
-    "python-dotenv>=1.0.0"
+    "python-dotenv>=1.0.0",
+    "psycopg2-binary>=2.9.11",
+    "email-validator>=2.3.0",
+    "bcrypt>=4.0.0,<5.0.0",
 ]
 
 [project.optional-dependencies]
@@ -62,3 +65,9 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = ["backend"]
 known-third-party = ["fastapi", "sqlmodel", "pydantic", "better_auth", "uvicorn", "pytest"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.0",
+    "pytest-cov>=7.0.0",
+]

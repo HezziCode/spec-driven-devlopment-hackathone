@@ -22,7 +22,7 @@ class TaskCreate(TaskBase):
     """
     Schema for creating a new task.
     """
-    tags: Optional[List[str]] = Field(default=[], max_items=10)
+    tags: Optional[List[str]] = Field(default=[], max_length=10)
 
 class TaskUpdate(TaskBase):
     """
@@ -30,7 +30,7 @@ class TaskUpdate(TaskBase):
     """
     title: Optional[str] = Field(default=None, min_length=1, max_length=200)
     completed: Optional[bool] = None
-    tags: Optional[List[str]] = Field(default=[], max_items=10)
+    tags: Optional[List[str]] = Field(default=[], max_length=10)
 
 class TaskResponse(TaskBase):
     """
