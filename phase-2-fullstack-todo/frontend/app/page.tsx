@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Sun,
-  Moon,
   ListTodo,
   LogOut,
   ArrowRight,
@@ -15,13 +13,15 @@ import {
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import LandingPage from '@/components/LandingPage';
+import NeuralBackground from '@/components/NeuralBackground';
+import PageRouteTransitionProvider from '@/components/providers/PageRouteTransitionProvider';
 
 // --- Custom Styles for Theme & Typography ---
-const GlobalStyles = ({ isDarkMode }) => (
+const GlobalStyles = () => (
   <style>{`
     body {
       transition: background-color 0.3s ease-in-out;
-      background-color: ${isDarkMode ? '#0f172a' : '#f0f9ff'}; /* Slate 900 / Sky 50 */
+      background-color: #0f172a; /* Dark background */
     }
 
     /* Gradient Text for Landing Page Headline */
@@ -37,12 +37,12 @@ const GlobalStyles = ({ isDarkMode }) => (
 
 // --- Global Cursor Follow Glow Component ---
 // This component displays the subtle glow animation that follows the mouse position globally.
-const CursorGlow = ({ isDarkMode, mousePosition }) => (
+const CursorGlow = ({ mousePosition }: { mousePosition: { x: number; y: number } }) => (
     <div
         className="fixed inset-0 z-0 pointer-events-none transition-opacity duration-300"
         style={{
             // Dynamic background with radial gradient following the mouse position relative to the viewport
-            background: `radial-gradient(450px at ${mousePosition.x}px ${mousePosition.y}px, ${isDarkMode ? 'rgba(45, 212, 191, 0.15)' : 'rgba(6, 182, 212, 0.3)'}, transparent 80%)`,
+            background: `radial-gradient(450px at ${mousePosition.x}px ${mousePosition.y}px, rgba(6, 182, 212, 0.1), transparent 80%)`,
             transition: 'background 0.05s ease-out',
         }}
     />
@@ -51,22 +51,17 @@ const CursorGlow = ({ isDarkMode, mousePosition }) => (
 
 // --- Main Application Component ---
 export default function App() {
-  const [userId, setUserId] = useState(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [view, setView] = useState('landing');
 
-  // Initialize Dark Mode based on system preference
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return false;
-  });
+  // Always in dark mode now
+  const isDarkMode = true;
 
   // Global Mouse Position State and Handler
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
-  const handleMouseMove = useCallback((e) => {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
     // Track mouse position relative to the viewport for global glow
     setMousePosition({
       x: e.clientX,
@@ -74,15 +69,7 @@ export default function App() {
     });
   }, []);
 
-  // Theme Toggle Effect (Apply to HTML root element)
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
-
+  
   // Set up global mouse tracking
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
@@ -101,11 +88,42 @@ export default function App() {
   }, []);
 
   // --- Auth Action Handler ---
-  const handleAuthAction = useCallback(async (action) => {
+  const handleAuthAction = useCallback(async (action: string) => {
     if (action === 'signin') {
-      // Simulate sign in
+      // Simulate sign in by creating a demo JWT token
+      // Create a simple JWT payload with demo user data
+      const demoUser = {
+        userId: 'demo-user',
+        email: 'demo@example.com',
+        username: 'Demo User',
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours from now
+        iat: Math.floor(Date.now() / 1000)
+      };
+
+      // Create a fake JWT token (header.payload.signature format)
+      // Note: This is for demo purposes only - real JWTs should be signed by the server
+      const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
+      const payload = btoa(JSON.stringify(demoUser));
+      const fakeSignature = btoa('fake-signature');
+      const demoToken = `${header}.${payload}.${fakeSignature}`;
+
+      // Store the demo token in localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('better-auth-session-token', demoToken);
+      }
+
+      // Set the userId state
       setUserId('demo-user');
+
+      // Redirect to the tasks dashboard after sign in
+      if (typeof window !== 'undefined') {
+        window.location.href = '/tasks';
+      }
     } else if (action === 'signout') {
+      // Clear the demo token from localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('better-auth-session-token');
+      }
       setUserId(null);
       setView('landing');
     }
@@ -115,7 +133,7 @@ export default function App() {
   // --- Loading State ---
   if (!isAuthReady) {
     return (
-      <div className="min-h-screen bg-sky-50 dark:bg-slate-900 flex items-center justify-center transition-colors duration-300">
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center transition-colors duration-300">
         <div className="w-16 h-16 border-4 border-cyan-200 border-t-cyan-600 rounded-full animate-spin"></div>
       </div>
     );
@@ -123,26 +141,29 @@ export default function App() {
 
   // --- Main Render (Only Landing Page is available) ---
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark' : ''} relative`}>
-      <GlobalStyles isDarkMode={isDarkMode} />
+    <PageRouteTransitionProvider>
+      <div className="min-h-screen bg-slate-900/90 transition-colors duration-300 relative">
+        <GlobalStyles />
 
-      {/* Global Cursor Glow rendered as a fixed element */}
-      <CursorGlow isDarkMode={isDarkMode} mousePosition={mousePosition} />
+        {/* Neural Background - positioned just behind content but above base background */}
+        <NeuralBackground />
 
-      <Navbar
-        userId={userId}
-        handleAuthAction={handleAuthAction}
-        isDarkMode={isDarkMode}
-        setIsDarkMode={setIsDarkMode}
-        setView={setView}
-      />
+        {/* Global Cursor Glow rendered as a fixed element */}
+        <CursorGlow mousePosition={mousePosition} />
 
-      <LandingPage
-        handleAuthAction={handleAuthAction}
-        isDarkMode={isDarkMode}
-      />
-      <Footer isDarkMode={isDarkMode} setView={setView} />
+        <div className="relative z-10">
+          <Navbar
+            userId={userId}
+            handleAuthAction={handleAuthAction}
+            setView={setView}
+          />
 
-    </div>
+          <LandingPage
+            handleAuthAction={handleAuthAction}
+          />
+          <Footer setView={setView} />
+        </div>
+      </div>
+    </PageRouteTransitionProvider>
   );
 }

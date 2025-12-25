@@ -8,7 +8,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: 'var(--font-ibm-plex-sans)',
+        display: 'var(--font-dm-sans)',
       },
       colors: {
         'gradient-start': '#0d9488', // teal-600
@@ -21,4 +22,4 @@ module.exports = {
   },
   plugins: [],
   darkMode: 'class', // Enable dark mode with class strategy
-}
+};
