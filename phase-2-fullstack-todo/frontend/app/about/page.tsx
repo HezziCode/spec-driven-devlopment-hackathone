@@ -40,7 +40,7 @@ const AboutPage = () => {
   };
 
   // Mock notifications data
-  const mockNotifications = [];
+  const mockNotifications: any[] = [];
 
   return (
     <div className="min-h-screen bg-slate-900/40 transition-colors duration-300 relative">
@@ -201,7 +201,7 @@ const AboutPage = () => {
           </div>
         </main>
 
-        <Footer setView={() => {}} />
+        <Footer />
       </div>
     </div>
   );

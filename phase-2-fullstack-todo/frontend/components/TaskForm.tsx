@@ -25,8 +25,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
   const [tagInput, setTagInput] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Predefined tag options
-  const predefinedTags = ['Design', 'Dev', 'Marketing', 'Meeting', 'Strategy', 'Urgent'];
+  // Predefined tag options - Clean, simple categories
+  const predefinedTags = ['work', 'personal', 'focus', 'meeting', 'urgent', 'health'];
 
   // Validate form fields
   const validate = () => {
@@ -143,8 +143,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
           <select
             id="priority"
             value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-            className="w-full bg-slate-700/40 border border-slate-600/30 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-2 focus:ring-cyan-500 outline-none appearance-none cursor-pointer"
+            onChange={(e) => setPriority(e.target.value as 'low' | 'medium' | 'high' | 'critical')}
+            className="w-full bg-slate-700/40 border border-slate-600/30 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-2 focus:ring-cyan-500 outline-none appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-slate-200"
           >
             <option value="low">Low</option>
             <option value="medium">Medium</option>

@@ -6,6 +6,7 @@ All schemas enforce validation rules and exclude sensitive data from responses.
 """
 
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
@@ -37,7 +38,7 @@ class UserResponse(BaseModel):
     Schema for user data in API responses.
 
     Excludes password_hash for security.
-    Contains only safe user information.
+    Contains only safe user information including OAuth profile data.
     """
     model_config = ConfigDict(from_attributes=True)  # Allow creating from ORM models
 
@@ -45,6 +46,8 @@ class UserResponse(BaseModel):
     username: str = Field(..., description="Username")
     email: str = Field(..., description="Email address")
     created_at: datetime = Field(..., description="Account creation timestamp")
+    profile_picture: Optional[str] = Field(None, description="URL to user's profile picture (from OAuth)")
+    auth_provider: Optional[str] = Field(None, description="Authentication provider (local or google)")
 
 
 class AuthResponse(BaseModel):
@@ -55,3 +58,35 @@ class AuthResponse(BaseModel):
     """
     user: UserResponse = Field(..., description="Authenticated user information")
     token: str = Field(..., description="JWT authentication token")
+
+
+class GoogleOAuthCallback(BaseModel):
+    """
+    Schema for Google OAuth callback request.
+
+    Contains the Google ID token received from OAuth flow.
+    """
+    id_token: str = Field(..., description="Google ID token from OAuth callback")
+    state: Optional[str] = Field(None, description="CSRF protection state parameter")
+
+
+class GoogleLinkConfirm(BaseModel):
+    """
+    Schema for confirming Google account linking.
+
+    Used when user confirms linking their Google account to existing email/password account.
+    """
+    linking_token: str = Field(..., description="Temporary JWT token for account linking confirmation")
+    confirm: bool = Field(..., description="User confirmation (true to link, false to cancel)")
+
+
+class AccountLinkingRequired(BaseModel):
+    """
+    Schema for account linking confirmation response.
+
+    Returned when Google email matches existing email/password account.
+    """
+    requires_confirmation: bool = Field(default=True, description="Indicates account linking requires confirmation")
+    email: str = Field(..., description="Email address that requires linking confirmation")
+    linking_token: str = Field(..., description="Temporary token to complete account linking")
+    message: str = Field(..., description="User-friendly message explaining the situation")

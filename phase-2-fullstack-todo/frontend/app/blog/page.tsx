@@ -40,7 +40,7 @@ const BlogPage = () => {
   };
 
   // Mock notifications data
-  const mockNotifications = [];
+  const mockNotifications: any[] = [];
 
   // Sample blog posts
   const blogPosts = [
@@ -286,7 +286,7 @@ const BlogPage = () => {
           </div>
         </main>
 
-        <Footer setView={() => {}} />
+        <Footer />
       </div>
     </div>
   );

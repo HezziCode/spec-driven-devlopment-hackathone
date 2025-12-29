@@ -10,14 +10,31 @@ from fastapi.responses import JSONResponse
 from sqlmodel import Session, select, func
 from passlib.context import CryptContext
 from jose import jwt
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 import os
 from dotenv import load_dotenv
 
 from db import get_session
 from models import User
-from schemas.auth import SignupRequest, LoginRequest, UserResponse, AuthResponse
+from schemas.auth import (
+    SignupRequest,
+    LoginRequest,
+    UserResponse,
+    AuthResponse,
+    GoogleOAuthCallback,
+    AccountLinkingRequired,
+    GoogleLinkConfirm
+)
+from services.oauth_service import (
+    verify_google_token,
+    find_user_by_google_id,
+    find_user_by_email,
+    create_user_from_google_profile,
+    link_google_account,
+    generate_linking_token,
+    verify_linking_token
+)
 
 # Load environment variables
 load_dotenv()
@@ -55,7 +72,7 @@ def create_jwt_token(user_id: UUID, email: str) -> str:
         >>> token = create_jwt_token(user.id, user.email)
         >>> # Token contains: sub, email, exp, iat claims
     """
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     expiration = now + timedelta(days=JWT_EXPIRATION_DAYS)
 
     payload = {
@@ -67,6 +84,39 @@ def create_jwt_token(user_id: UUID, email: str) -> str:
 
     token = jwt.encode(payload, BETTER_AUTH_SECRET, algorithm=JWT_ALGORITHM)
     return token
+
+
+def create_user_response(user: User) -> UserResponse:
+    """
+    Create UserResponse from User model with profile picture extraction.
+
+    Extracts profile picture URL from oauth_data JSON if available.
+
+    Args:
+        user: User model instance.
+
+    Returns:
+        UserResponse with profile picture extracted from oauth_data.
+    """
+    import json
+
+    profile_picture = None
+    if user.oauth_data:
+        try:
+            # Parse oauth_data if it's a string
+            oauth_dict = json.loads(user.oauth_data) if isinstance(user.oauth_data, str) else user.oauth_data
+            profile_picture = oauth_dict.get('picture')
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            pass
+
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        created_at=user.created_at,
+        profile_picture=profile_picture,
+        auth_provider=user.auth_provider
+    )
 
 
 def error_response(status_code: int, message: str, code: str) -> JSONResponse:
@@ -89,7 +139,7 @@ def error_response(status_code: int, message: str, code: str) -> JSONResponse:
         content={
             "error": message,
             "code": code,
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     )
 
@@ -164,7 +214,7 @@ async def signup_user(
         token = create_jwt_token(new_user.id, new_user.email)
 
         # Create response with user data (excluding password_hash)
-        user_response = UserResponse.model_validate(new_user)
+        user_response = create_user_response(new_user)
         return AuthResponse(user=user_response, token=token)
 
     except HTTPException:
@@ -239,7 +289,7 @@ async def login_user(
         token = create_jwt_token(user.id, user.email)
 
         # Create response with user data (excluding password_hash)
-        user_response = UserResponse.model_validate(user)
+        user_response = create_user_response(user)
         return AuthResponse(user=user_response, token=token)
 
     except HTTPException:
@@ -277,3 +327,197 @@ async def logout_user() -> dict:
         - For immediate revocation, implement token blacklist (future enhancement)
     """
     return {"message": "Successfully logged out"}
+
+
+@router.post(
+    "/google/callback",
+    response_model=AuthResponse | AccountLinkingRequired,
+    status_code=status.HTTP_200_OK,
+    summary="Google OAuth callback",
+    description="Handle Google OAuth callback with ID token verification and user creation or authentication."
+)
+async def google_oauth_callback(
+    request: GoogleOAuthCallback,
+    session: Session = Depends(get_session)
+) -> AuthResponse | AccountLinkingRequired:
+    """
+    Handle Google OAuth callback and create or authenticate user.
+
+    Flow:
+    1. Verify Google ID token
+    2. Check if user exists by google_id → authenticate existing Google user
+    3. Check if user exists by email → require account linking confirmation
+    4. Create new user from Google profile
+
+    Args:
+        request: Google OAuth callback containing ID token.
+        session: Database session.
+
+    Returns:
+        AuthResponse: JWT token and user data for new/existing Google user.
+        AccountLinkingRequired: Linking token and confirmation required for email match.
+
+    Raises:
+        HTTPException 400: Invalid Google token.
+        HTTPException 500: Server errors.
+    """
+    try:
+        # Verify Google ID token
+        try:
+            google_claims = verify_google_token(request.id_token)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": f"Invalid Google token: {str(e)}", "code": "INVALID_GOOGLE_TOKEN"}
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={"error": f"Token verification failed: {str(e)}", "code": "TOKEN_VERIFICATION_FAILED"}
+            )
+
+        google_id = google_claims.get('sub')
+        email = google_claims.get('email')
+
+        if not google_id or not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Missing required Google claims (sub, email)", "code": "MISSING_CLAIMS"}
+            )
+
+        # Check if user exists with this google_id (returning Google user)
+        existing_google_user = find_user_by_google_id(session, google_id)
+        if existing_google_user:
+            # Existing Google user - authenticate
+            token = create_jwt_token(existing_google_user.id, existing_google_user.email)
+            user_response = create_user_response(existing_google_user)
+            return AuthResponse(user=user_response, token=token)
+
+        # Check if user exists with this email (email/password user)
+        existing_email_user = find_user_by_email(session, email)
+        if existing_email_user and existing_email_user.auth_provider == "local":
+            # Email/password user exists - require account linking confirmation
+            linking_token = generate_linking_token(
+                str(existing_email_user.id),
+                existing_email_user.email,
+                google_id
+            )
+            return AccountLinkingRequired(
+                requires_confirmation=True,
+                email=email,
+                linking_token=linking_token,
+                message=f"An account with email {email} already exists. Do you want to link your Google account to this existing account?"
+            )
+
+        # New Google user - create account
+        try:
+            new_user = create_user_from_google_profile(session, google_claims)
+            token = create_jwt_token(new_user.id, new_user.email)
+            user_response = create_user_response(new_user)
+            return AuthResponse(user=user_response, token=token)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": str(e), "code": "USER_CREATION_FAILED"}
+            )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Log unexpected errors and return 500
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": f"Internal server error during OAuth callback: {str(e)}", "code": "SERVER_ERROR"}
+        )
+
+
+@router.post(
+    "/google/link-confirm",
+    response_model=AuthResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Confirm Google account linking",
+    description="Confirm linking Google account to existing email/password account after user confirmation."
+)
+async def google_link_confirm(
+    request: GoogleLinkConfirm,
+    session: Session = Depends(get_session)
+) -> AuthResponse:
+    """
+    Confirm Google account linking to existing user account.
+
+    Args:
+        request: Linking confirmation containing linking_token and confirm flag.
+        session: Database session.
+
+    Returns:
+        AuthResponse: JWT token and user data with linked Google account.
+
+    Raises:
+        HTTPException 400: Invalid linking token or user not found.
+        HTTPException 403: User rejected linking (confirm=False).
+        HTTPException 500: Server errors.
+    """
+    try:
+        # Verify linking token
+        try:
+            claims = verify_linking_token(request.linking_token)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": f"Invalid linking token: {str(e)}", "code": "INVALID_LINKING_TOKEN"}
+            )
+
+        # Check if user rejected linking
+        if not request.confirm:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": "Account linking cancelled by user", "code": "LINKING_CANCELLED"}
+            )
+
+        user_id = claims['sub']
+        google_id = claims['google_id']
+
+        # Find user
+        user = session.get(User, UUID(user_id))
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": "User not found", "code": "USER_NOT_FOUND"}
+            )
+
+        # Verify Google token to get fresh claims
+        # (In production, you'd store google_claims in the linking token or re-verify)
+        # For now, create minimal oauth_data
+        oauth_data_minimal = {"google_id": google_id, "linked_at": datetime.now(timezone.utc).isoformat()}
+
+        # Link Google account
+        try:
+            updated_user = link_google_account(
+                session,
+                user,
+                google_id,
+                oauth_data_minimal  # Store minimal data for now
+            )
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": str(e), "code": "LINKING_FAILED"}
+            )
+
+        # Generate new JWT token
+        token = create_jwt_token(updated_user.id, updated_user.email)
+        user_response = create_user_response(updated_user)
+        return AuthResponse(user=user_response, token=token)
+
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Log unexpected errors and return 500
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": f"Internal server error during linking confirmation: {str(e)}", "code": "SERVER_ERROR"}
+        )

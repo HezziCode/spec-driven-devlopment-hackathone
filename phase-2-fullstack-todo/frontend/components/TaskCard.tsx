@@ -58,6 +58,48 @@ const TaskCard: React.FC<TaskCardProps> = ({
     critical: "from-rose-100 to-rose-200 dark:from-rose-500/20 dark:to-rose-600/5 border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400",
   };
 
+  // Clean, distinct tag styling system - 6 main categories
+  const getTagColor = (tag: string) => {
+    const tagLower = tag.toLowerCase();
+
+    // work - Professional blue
+    if (tagLower === 'work') {
+      return "bg-blue-600/40 text-blue-100 border-blue-400/60 shadow-lg shadow-blue-500/30 ring-1 ring-blue-400/30 font-semibold";
+    }
+
+    // personal - Warm purple
+    if (tagLower === 'personal') {
+      return "bg-purple-600/40 text-purple-100 border-purple-400/60 shadow-lg shadow-purple-500/30 ring-1 ring-purple-400/30 font-semibold";
+    }
+
+    // focus - Deep indigo
+    if (tagLower === 'focus') {
+      return "bg-indigo-600/40 text-indigo-100 border-indigo-400/60 shadow-lg shadow-indigo-500/30 ring-1 ring-indigo-400/30 font-semibold";
+    }
+
+    // meeting - Bright orange
+    if (tagLower === 'meeting') {
+      return "bg-orange-600/40 text-orange-100 border-orange-400/60 shadow-lg shadow-orange-500/30 ring-1 ring-orange-400/30 font-semibold";
+    }
+
+    // urgent - BOLD red with pulse
+    if (tagLower === 'urgent') {
+      return "bg-red-600/50 text-red-50 border-red-400/70 shadow-xl shadow-red-500/40 ring-2 ring-red-400/50 font-bold animate-pulse";
+    }
+
+    // health - Fresh green
+    if (tagLower === 'health') {
+      return "bg-emerald-600/40 text-emerald-100 border-emerald-400/60 shadow-lg shadow-emerald-500/30 ring-1 ring-emerald-400/30 font-semibold";
+    }
+
+    // Legacy support for existing user tags
+    if (tagLower === 'enjoyment') return "bg-indigo-600/40 text-indigo-100 border-indigo-400/60 shadow-lg shadow-indigo-500/30 ring-1 ring-indigo-400/30 font-semibold";
+    if (tagLower === 'friend zone') return "bg-pink-600/40 text-pink-100 border-pink-400/60 shadow-lg shadow-pink-500/30 ring-1 ring-pink-400/30 font-semibold";
+
+    // Default for any other tags - Neutral gray/slate
+    return "bg-slate-600/30 text-slate-300 border-slate-500/40 shadow-sm shadow-slate-500/10";
+  };
+
   return (
     <div className="h-full">
       <div className={`relative h-full p-5 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-700/20 overflow-hidden group transition-all duration-300 hover:bg-slate-800/40`}>
@@ -80,7 +122,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
           <div className="flex flex-wrap gap-1 mb-4">
             {tags.map(tag => (
-                <span key={tag} className="text-[10px] uppercase font-medium text-slate-400 bg-slate-700/30 backdrop-blur-sm px-1.5 py-0.5 rounded border border-slate-600/20">
+                <span key={tag} className={`text-[10px] uppercase font-medium backdrop-blur-sm px-1.5 py-0.5 rounded border ${getTagColor(tag)}`}>
                     #{tag}
                 </span>
             ))}
@@ -89,7 +131,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           <div className="mt-auto">
             <button
                 onClick={handleToggleComplete}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 cursor-pointer
                 ${completed
                     ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 backdrop-blur-sm'
                     : 'bg-gradient-to-r from-cyan-600/20 to-blue-600/20 hover:shadow-sm hover:shadow-cyan-500/10 text-cyan-300 border border-cyan-500/30 backdrop-blur-sm'}`}

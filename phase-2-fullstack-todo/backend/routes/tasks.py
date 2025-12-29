@@ -9,7 +9,7 @@ from services.task_service import (
     create_task, get_user_tasks, get_task_by_id,
     update_task, delete_task, validate_task_data
 )
-from schemas.task import TaskCreate, TaskUpdate, TaskResponse, TaskListResponse, PriorityEnum
+from schemas.task import TaskCreate, TaskUpdate, TaskResponse, TaskListResponse, PriorityEnum, SortEnum
 
 router = APIRouter(prefix="/users/{user_id}", tags=["tasks"])
 
@@ -41,7 +41,10 @@ async def create_user_task(
 
     try:
         task = create_task(session, task_data, user_id)
-        return task
+        # Convert TaskTag objects to tag name strings
+        task_dict = task.model_dump()
+        task_dict['tags'] = [tag.tag_name for tag in task.tags] if task.tags else []
+        return TaskResponse(**task_dict)
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -58,11 +61,12 @@ async def get_user_tasks_list(
     priority: Optional[PriorityEnum] = Query(None, description="Filter by priority"),
     tag: Optional[str] = Query(None, description="Filter by tag name"),
     search: Optional[str] = Query(None, description="Search in title and description"),
+    sort: SortEnum = Query(SortEnum.created, description="Sort by created/title/priority/updated"),
     limit: int = Query(20, ge=1, le=100, description="Number of tasks to return"),
     offset: int = Query(0, ge=0, description="Number of tasks to skip")
 ):
     """
-    Get all tasks for the authenticated user with optional filtering and pagination.
+    Get all tasks for the authenticated user with filtering, search, sorting, and pagination.
     """
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
@@ -73,9 +77,20 @@ async def get_user_tasks_list(
 
     try:
         tasks, total = get_user_tasks(
-            session, user_id, completed, priority, tag, search, limit, offset
+            session, user_id, completed, priority, tag, search, sort.value, limit, offset
         )
-        return TaskListResponse(tasks=tasks, total=total)
+
+        # Convert tasks to response format with string tags
+        task_responses = []
+        for task in tasks:
+            task_dict = task.model_dump()
+            task_dict['tags'] = [tag.tag_name for tag in task.tags] if task.tags else []
+            task_responses.append(TaskResponse(**task_dict))
+
+        # Calculate page number
+        page = (offset // limit) + 1 if limit > 0 else 1
+
+        return TaskListResponse(tasks=task_responses, total=total, page=page, limit=limit)
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -107,7 +122,12 @@ async def get_user_task(
                 status_code=404,
                 detail="Task not found"
             )
-        return task
+        # Convert TaskTag objects to tag name strings
+        task_dict = task.model_dump()
+        task_dict['tags'] = [tag.tag_name for tag in task.tags] if task.tags else []
+        return TaskResponse(**task_dict)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -140,7 +160,12 @@ async def update_user_task(
                 status_code=404,
                 detail="Task not found"
             )
-        return task
+        # Convert TaskTag objects to tag name strings
+        task_dict = task.model_dump()
+        task_dict['tags'] = [tag.tag_name for tag in task.tags] if task.tags else []
+        return TaskResponse(**task_dict)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -173,7 +198,12 @@ async def partial_update_user_task(
                 status_code=404,
                 detail="Task not found"
             )
-        return task
+        # Convert TaskTag objects to tag name strings
+        task_dict = task.model_dump()
+        task_dict['tags'] = [tag.tag_name for tag in task.tags] if task.tags else []
+        return TaskResponse(**task_dict)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -206,6 +236,8 @@ async def delete_user_task(
                 detail="Task not found"
             )
         return {"message": "Task deleted successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,

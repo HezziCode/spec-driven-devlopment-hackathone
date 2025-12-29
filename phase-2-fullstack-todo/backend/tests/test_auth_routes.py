@@ -8,7 +8,7 @@ following TDD approach (RED phase - tests written before implementation).
 import pytest
 from fastapi.testclient import TestClient
 from jose import jwt
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 import os
 from sqlmodel import select
 from models import User

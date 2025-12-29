@@ -5,7 +5,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthHook as useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import WaveSpinner from './WaveSpinner';
 
 interface ProtectedRouteProps {
@@ -20,22 +20,22 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   redirectPath = '/auth'
 }) => {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { session, status, isLoading } = useAuth();
 
   useEffect(() => {
     // If user is not authenticated and not loading, redirect to auth
-    if (!isLoading && !isAuthenticated) {
+    if (!isLoading && status === 'unauthenticated') {
       router.push(redirectPath);
     }
-  }, [isAuthenticated, isLoading, router, redirectPath]);
+  }, [status, isLoading, router, redirectPath]);
 
   // Show loading state while checking authentication
-  if (isLoading) {
+  if (isLoading || status === 'loading') {
     return fallback || <WaveSpinner />;
   }
 
   // If authenticated, render the protected content
-  if (isAuthenticated) {
+  if (status === 'authenticated' && session) {
     return <>{children}</>;
   }
 

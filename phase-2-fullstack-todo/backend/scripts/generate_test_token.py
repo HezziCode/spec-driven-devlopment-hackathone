@@ -13,7 +13,7 @@ Usage:
 
 import os
 import sys
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # Add parent directory to path so we can import from backend
@@ -54,7 +54,7 @@ def generate_token(
         )
 
     # Create payload
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     if expired:
         exp_time = now - timedelta(hours=1)  # Expired 1 hour ago
         iat_time = now - timedelta(hours=2)
