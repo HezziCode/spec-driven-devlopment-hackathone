@@ -1,8 +1,8 @@
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Column
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID, uuid4
-from sqlalchemy import Index, UniqueConstraint
+from sqlalchemy import Index, UniqueConstraint, JSON
 import enum
 
 
@@ -22,7 +22,10 @@ class User(SQLModel, table=True):
         id: Unique identifier for the user (UUID).
         username: Unique username for the user (max 50 characters).
         email: Unique email address for the user (max 100 characters).
-        password_hash: Hashed password for authentication (max 255 characters).
+        password_hash: Hashed password for authentication (max 255 characters, nullable for OAuth users).
+        auth_provider: Authentication method ('local' for email/password, 'google' for Google OAuth).
+        google_id: Google user ID from OAuth (unique, nullable).
+        oauth_data: JSON data storing Google profile information (nullable).
         created_at: Timestamp when the user was created.
         updated_at: Timestamp when the user was last updated.
         tasks: Relationship to user's tasks (one-to-many).
@@ -32,7 +35,10 @@ class User(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     username: str = Field(unique=True, max_length=50, nullable=False, index=True)
     email: str = Field(unique=True, max_length=100, nullable=False, index=True)
-    password_hash: str = Field(max_length=255, nullable=False)
+    password_hash: Optional[str] = Field(default=None, max_length=255, nullable=True)
+    auth_provider: str = Field(default="local", max_length=20, nullable=False, index=True)
+    google_id: Optional[str] = Field(default=None, max_length=255, unique=True, nullable=True, index=True)
+    oauth_data: Optional[str] = Field(default=None, sa_column=Column(JSON, nullable=True))
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
     updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 

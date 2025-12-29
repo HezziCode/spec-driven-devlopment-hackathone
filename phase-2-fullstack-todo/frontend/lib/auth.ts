@@ -10,11 +10,12 @@ import { authApi } from './api';
 
 /**
  * JWT Token payload structure
+ * Note: Backend uses "sub" (standard JWT claim) for user ID
  */
 interface JwtPayload {
   exp: number;
   iat: number;
-  user_id: string;
+  sub: string;  // Standard JWT "subject" claim (user ID)
   email: string;
   username?: string;
   [key: string]: any;
@@ -116,13 +117,14 @@ export function isAuthenticated(): boolean {
 
 /**
  * Get current user ID from token
+ * Uses "sub" claim (standard JWT subject field)
  */
 export function getCurrentUserId(): string | null {
   const token = getAuthToken();
   if (!token) return null;
 
   const payload = decodeToken(token);
-  return payload?.user_id || null;
+  return payload?.sub || null;
 }
 
 /**
@@ -179,7 +181,7 @@ function loadSessionFromToken(): Session | null {
 
   return {
     user: {
-      id: payload.user_id,
+      id: payload.sub,  // Use "sub" claim (standard JWT subject)
       email: payload.email,
       username: payload.username || payload.email.split('@')[0],
     },

@@ -10,6 +10,19 @@ class PriorityEnum(str, Enum):
     high = "high"
     critical = "critical"
 
+class SortEnum(str, Enum):
+    """Sort options for task lists."""
+    created = "created"
+    title = "title"
+    priority = "priority"
+    updated = "updated"
+
+class StatusEnum(str, Enum):
+    """Status filter options."""
+    pending = "pending"
+    completed = "completed"
+    all = "all"
+
 class TaskBase(BaseModel):
     """
     Base schema for task operations.
@@ -45,7 +58,9 @@ class TaskResponse(TaskBase):
 
 class TaskListResponse(BaseModel):
     """
-    Schema for task list response.
+    Schema for task list response with pagination metadata.
     """
     tasks: List[TaskResponse]
     total: int
+    page: int = Field(..., description="Current page number (1-indexed)")
+    limit: int = Field(..., description="Items per page")

@@ -45,7 +45,7 @@ const logResponse = (method: string, url: string, status: number, data: any): vo
   if (!isDevelopment) return;
 
   const logLevel = status >= 400 ? 'error' : 'log';
-  console[logLevel as any](`[API] ${method} ${url} ${status}`, data);
+  (console[logLevel as keyof Console] as (...args: any[]) => void)(`[API] ${method} ${url} ${status}`, data);
 };
 
 /**
@@ -141,15 +141,36 @@ const apiRequest = async <T>(
 
       logError(method, url, new Error(JSON.stringify(errorData)));
 
-      const error = new Error(
-        errorData.error ||
-        errorData.message ||
-        errorData.detail ||
-        `HTTP ${response.status}: ${response.statusText}`
-      );
+      // Extract error message from various formats
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      let errorCode = `HTTP_${response.status}`;
 
+      // Handle nested format: {detail: {error: "...", code: "..."}}
+      if (errorData.detail && typeof errorData.detail === 'object') {
+        errorMessage = errorData.detail.error || errorData.detail.message || errorMessage;
+        errorCode = errorData.detail.code || errorCode;
+      }
+      // Handle flat format: {error: "...", code: "..."}
+      else if (errorData.error) {
+        errorMessage = errorData.error;
+        errorCode = errorData.code || errorCode;
+      }
+      // Handle simple string detail: {detail: "..."}
+      else if (typeof errorData.detail === 'string') {
+        errorMessage = errorData.detail;
+      }
+      // Handle message field
+      else if (errorData.message) {
+        errorMessage = errorData.message;
+        errorCode = errorData.code || errorCode;
+      }
+
+      const error = new Error(errorMessage);
       (error as any).status = response.status;
+      (error as any).statusCode = response.status;
+      (error as any).code = errorCode;
       (error as any).data = errorData;
+      (error as any).details = errorData.detail;
 
       throw error;
     }

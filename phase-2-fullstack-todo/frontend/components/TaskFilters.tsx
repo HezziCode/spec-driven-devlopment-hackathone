@@ -1,86 +1,210 @@
 'use client';
 
-// Task filtering component with flow-themed styling for TaskFlow Dashboard
-// Provides UI controls for filtering tasks by status and priority
+// Enhanced Task filtering component with search, tag, sort, and advanced filtering
+// Provides comprehensive UI controls for filtering tasks by multiple criteria
+// Features debounced search input for optimal performance
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, X, Filter, SortAsc } from 'lucide-react';
+import type { SortEnum } from '@/types/api';
 
 interface TaskFiltersProps {
-  onFilterChange?: (status: 'all' | 'active' | 'completed', priority: 'all' | 'low' | 'medium' | 'high' | 'critical') => void;
-  initialStatus?: 'all' | 'active' | 'completed';
-  initialPriority?: 'all' | 'low' | 'medium' | 'high' | 'critical';
+  statusFilter: 'all' | 'active' | 'completed';
+  priorityFilter: 'all' | 'low' | 'medium' | 'high' | 'critical';
+  searchQuery: string;
+  tagFilter: string;
+  sortOrder: SortEnum;
+  onStatusChange: (status: 'all' | 'active' | 'completed') => void;
+  onPriorityChange: (priority: 'all' | 'low' | 'medium' | 'high' | 'critical') => void;
+  onSearchChange: (search: string) => void;
+  onTagChange: (tag: string) => void;
+  onSortChange: (sort: SortEnum) => void;
 }
 
 const TaskFilters: React.FC<TaskFiltersProps> = ({
-  onFilterChange,
-  initialStatus = 'all',
-  initialPriority = 'all'
+  statusFilter,
+  priorityFilter,
+  searchQuery,
+  tagFilter,
+  sortOrder,
+  onStatusChange,
+  onPriorityChange,
+  onSearchChange,
+  onTagChange,
+  onSortChange,
 }) => {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>(initialStatus);
-  const [priorityFilter, setPriorityFilter] = useState<'all' | 'low' | 'medium' | 'high' | 'critical'>(initialPriority);
+  // Local state for search input with debouncing
+  const [localSearch, setLocalSearch] = useState<string>(searchQuery);
+  const [localTag, setLocalTag] = useState<string>(tagFilter);
 
-  // Handle filter changes
-  const handleStatusChange = (newStatus: 'all' | 'active' | 'completed') => {
-    setStatusFilter(newStatus);
-    onFilterChange?.(newStatus, priorityFilter);
+  // Debounce search input (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localSearch !== searchQuery) {
+        onSearchChange(localSearch);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [localSearch, searchQuery, onSearchChange]);
+
+  // Debounce tag input (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localTag !== tagFilter) {
+        onTagChange(localTag);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [localTag, tagFilter, onTagChange]);
+
+  // Sync with prop changes (for URL-based initialization)
+  useEffect(() => {
+    setLocalSearch(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setLocalTag(tagFilter);
+  }, [tagFilter]);
+
+  // Clear search
+  const clearSearch = () => {
+    setLocalSearch('');
+    onSearchChange('');
   };
 
-  const handlePriorityChange = (newPriority: 'all' | 'low' | 'medium' | 'high' | 'critical') => {
-    setPriorityFilter(newPriority);
-    onFilterChange?.(statusFilter, newPriority);
+  // Clear tag filter
+  const clearTag = () => {
+    setLocalTag('');
+    onTagChange('');
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    onStatusChange('all');
+    onPriorityChange('all');
+    setLocalSearch('');
+    onSearchChange('');
+    setLocalTag('');
+    onTagChange('');
+    onSortChange('created');
   };
 
   return (
-    <div className="bg-slate-800/90 rounded-xl p-4 border border-slate-700/50">
-      <h3 className="text-lg font-bold text-white mb-4">Task Filters</h3>
+    <div className="mb-8 bg-slate-800/20 backdrop-blur-sm rounded-xl p-6 border border-slate-700/20">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <Filter className="text-cyan-400" size={20} />
+          <h3 className="text-lg font-bold text-white">Filters & Search</h3>
+        </div>
+        <button
+          onClick={clearAllFilters}
+          className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+        >
+          Clear All
+        </button>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Status Filter */}
+      <div className="space-y-4">
+        {/* Search Input */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
-          <div className="flex flex-wrap gap-2">
-            {(['all', 'active', 'completed'] as const).map(option => (
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            <Search size={14} className="inline mr-1" />
+            Search Tasks
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              placeholder="Search by title or description..."
+              className="w-full bg-slate-700/40 backdrop-blur-sm border border-slate-600/50 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-300 placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 outline-none"
+            />
+            {localSearch && (
               <button
-                key={option}
-                type="button"
-                onClick={() => handleStatusChange(option)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                  ${statusFilter === option
-                    ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/30'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
               >
-                {option === 'all' ? 'All Tasks' :
-                 option === 'active' ? 'Active' : 'Completed'}
+                <X size={16} />
               </button>
-            ))}
+            )}
           </div>
         </div>
 
-        {/* Priority Filter */}
+        {/* Tag Filter Input */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Priority</label>
-          <div className="flex flex-wrap gap-2">
-            {(['all', 'low', 'medium', 'high', 'critical'] as const).map(option => (
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Filter by Tag
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={localTag}
+              onChange={(e) => setLocalTag(e.target.value)}
+              placeholder="Enter tag name..."
+              className="w-full bg-slate-700/40 backdrop-blur-sm border border-slate-600/50 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-300 placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 outline-none"
+            />
+            {localTag && (
               <button
-                key={option}
-                type="button"
-                onClick={() => handlePriorityChange(option)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                  ${priorityFilter === option
-                    ? option === 'high' || option === 'critical'
-                      ? 'bg-red-600 text-white shadow-lg shadow-red-500/30'
-                      : option === 'medium'
-                        ? 'bg-amber-600 text-white shadow-lg shadow-amber-500/30'
-                        : 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                onClick={clearTag}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
               >
-                {option === 'all' ? 'All Priorities' :
-                 option === 'high' ? 'High' :
-                 option === 'critical' ? 'Critical' :
-                 option.charAt(0).toUpperCase() + option.slice(1)}
+                <X size={16} />
               </button>
-            ))}
+            )}
           </div>
+        </div>
+
+        {/* Status and Priority Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => onStatusChange(e.target.value as 'all' | 'active' | 'completed')}
+              className="w-full bg-slate-700/40 backdrop-blur-sm border border-slate-600/50 rounded-lg px-4 py-2.5 text-sm text-slate-300 focus:ring-2 focus:ring-cyan-500 outline-none appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-slate-200"
+            >
+              <option value="all">All Tasks</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+
+          {/* Priority Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Priority</label>
+            <select
+              value={priorityFilter}
+              onChange={(e) => onPriorityChange(e.target.value as 'all' | 'low' | 'medium' | 'high' | 'critical')}
+              className="w-full bg-slate-700/40 backdrop-blur-sm border border-slate-600/50 rounded-lg px-4 py-2.5 text-sm text-slate-300 focus:ring-2 focus:ring-cyan-500 outline-none appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-slate-200"
+            >
+              <option value="all">All Priorities</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Sort Order */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            <SortAsc size={14} className="inline mr-1" />
+            Sort By
+          </label>
+          <select
+            value={sortOrder}
+            onChange={(e) => onSortChange(e.target.value as SortEnum)}
+            className="w-full bg-slate-700/40 backdrop-blur-sm border border-slate-600/50 rounded-lg px-4 py-2.5 text-sm text-slate-300 focus:ring-2 focus:ring-cyan-500 outline-none appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-slate-200"
+          >
+            <option value="created">Newest First</option>
+            <option value="updated">Recently Updated</option>
+            <option value="title">Alphabetical (A-Z)</option>
+            <option value="priority">Priority (High to Low)</option>
+          </select>
         </div>
       </div>
     </div>

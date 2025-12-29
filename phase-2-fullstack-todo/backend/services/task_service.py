@@ -1,4 +1,5 @@
 from sqlmodel import Session, select
+from sqlalchemy import func, case, desc, asc
 from typing import List, Optional
 from datetime import datetime
 from uuid import UUID
@@ -36,9 +37,6 @@ def create_task(session: Session, task_data: TaskCreate, user_id: UUID) -> Task:
     session.commit()
     session.refresh(task)
 
-    # Add tags to the task response
-    task.tags = [tag.tag_name for tag in task.tags]
-
     return task
 
 
@@ -49,6 +47,7 @@ def get_user_tasks(
     priority: Optional[PriorityEnum] = None,
     tag: Optional[str] = None,
     search: Optional[str] = None,
+    sort: str = "created",
     limit: int = 20,
     offset: int = 0
 ) -> tuple[List[Task], int]:
@@ -76,24 +75,41 @@ def get_user_tasks(
     # Apply tag filter if needed
     if tag is not None:
         # Join with TaskTag to filter by tag
-        from sqlalchemy import func
         query = query.join(TaskTag).where(TaskTag.tag_name == tag)
 
     # Get total count
     total_query = select(func.count()).select_from(query.subquery())
     total_count = session.exec(total_query).one()
 
+    # Apply sorting
+    if sort == "created":
+        query = query.order_by(desc(Task.created_at))
+    elif sort == "title":
+        query = query.order_by(asc(Task.title))
+    elif sort == "priority":
+        # Custom order: critical > high > medium > low
+        query = query.order_by(
+            case(
+                (Task.priority == "critical", 1),
+                (Task.priority == "high", 2),
+                (Task.priority == "medium", 3),
+                (Task.priority == "low", 4),
+                else_=5
+            )
+        )
+    elif sort == "updated":
+        query = query.order_by(desc(Task.updated_at))
+    else:  # Default to created descending
+        query = query.order_by(desc(Task.created_at))
+
     # Apply pagination
-    query = query.offset(offset).limit(limit).order_by(Task.created_at.desc())
+    query = query.offset(offset).limit(limit)
 
     tasks = session.exec(query).all()
 
-    # Add tags to each task
-    for task in tasks:
-        task_tags = session.exec(
-            select(TaskTag).where(TaskTag.task_id == task.id)
-        ).all()
-        task.tags = [tag.tag_name for tag in task_tags]
+    # Load tags for each task (tags are TaskTag objects loaded via relationship)
+    # No need to manually query - SQLModel relationships handle this automatically
+    # The tags will be converted to strings in the route handler
 
     return tasks, total_count
 
@@ -101,16 +117,16 @@ def get_user_tasks(
 def get_task_by_id(session: Session, task_id: UUID, user_id: UUID) -> Optional[Task]:
     """
     Get a specific task by ID for a user.
+
+    Returns the task with its tags loaded if it exists and belongs to the user.
+    Returns None if task doesn't exist or belongs to a different user.
     """
     task = session.get(Task, task_id)
 
     # Verify that the task belongs to the user
     if task and task.user_id == user_id:
-        # Add tags to the task
-        task_tags = session.exec(
-            select(TaskTag).where(TaskTag.task_id == task.id)
-        ).all()
-        task.tags = [tag.tag_name for tag in task_tags]
+        # Tags are automatically loaded via SQLModel relationship
+        # No need to manually query - task.tags will contain TaskTag objects
         return task
 
     return None

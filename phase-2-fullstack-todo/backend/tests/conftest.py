@@ -8,7 +8,7 @@ import pytest
 from sqlmodel import SQLModel, Session, create_engine
 from sqlalchemy.pool import StaticPool
 from typing import Generator, Tuple
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 import os
 from jose import jwt
 from passlib.context import CryptContext
@@ -132,8 +132,8 @@ def create_valid_jwt_generator(test_secret: str):
         payload = {
             "sub": user_id,
             "email": email,
-            "exp": datetime.now(UTC) + timedelta(hours=1),
-            "iat": datetime.now(UTC)
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "iat": datetime.now(timezone.utc)
         }
         return jwt.encode(payload, test_secret, algorithm="HS256")
 
@@ -170,8 +170,8 @@ def create_expired_jwt_generator(test_secret: str):
         payload = {
             "sub": user_id,
             "email": email,
-            "exp": datetime.now(UTC) - timedelta(hours=1),  # Expired 1 hour ago
-            "iat": datetime.now(UTC) - timedelta(hours=2)
+            "exp": datetime.now(timezone.utc) - timedelta(hours=1),  # Expired 1 hour ago
+            "iat": datetime.now(timezone.utc) - timedelta(hours=2)
         }
         return jwt.encode(payload, test_secret, algorithm="HS256")
 
@@ -205,8 +205,8 @@ def create_invalid_jwt_generator():
         payload = {
             "sub": user_id,
             "email": email,
-            "exp": datetime.now(UTC) + timedelta(hours=1),
-            "iat": datetime.now(UTC)
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "iat": datetime.now(timezone.utc)
         }
         # Use wrong secret to create invalid signature
         return jwt.encode(payload, "wrong-secret-key-different-from-test-secret", algorithm="HS256")
@@ -292,3 +292,224 @@ def valid_login_data_fixture():
         "email": "test@example.com",
         "password": "SecurePass123"
     }
+
+
+# ============================================================================
+# Security Test Fixtures for Task Operations
+# ============================================================================
+
+from fastapi.testclient import TestClient
+from main import app
+from db import get_session as get_session_dep
+from models import Task, TaskTag
+
+
+@pytest.fixture(name="client")
+def create_test_client(session: Session):
+    """
+    Create FastAPI test client with database session override.
+
+    Args:
+        session: Test database session from create_test_session fixture.
+
+    Returns:
+        TestClient: FastAPI test client with overridden dependencies.
+
+    Example:
+        def test_endpoint(client):
+            response = client.get("/some/endpoint")
+    """
+    def get_session_override():
+        return session
+
+    app.dependency_overrides[get_session_dep] = get_session_override
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="test_user_a")
+def create_test_user_a(session: Session, generate_valid_jwt) -> Tuple[User, str, str]:
+    """
+    Create test user A with JWT token.
+
+    Returns:
+        Tuple[User, str, str]: (user, plaintext_password, jwt_token)
+    """
+    password = "TestPass123"
+    password_hash = pwd_context.hash(password)
+    user = User(
+        username="user_a",
+        email="user_a@example.com",
+        password_hash=password_hash
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    token = generate_valid_jwt(user_id=str(user.id), email=user.email)
+    return user, password, token
+
+
+@pytest.fixture(name="test_user_b")
+def create_test_user_b(session: Session, generate_valid_jwt) -> Tuple[User, str, str]:
+    """
+    Create test user B with JWT token.
+
+    Returns:
+        Tuple[User, str, str]: (user, plaintext_password, jwt_token)
+    """
+    password = "TestPass456"
+    password_hash = pwd_context.hash(password)
+    user = User(
+        username="user_b",
+        email="user_b@example.com",
+        password_hash=password_hash
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    token = generate_valid_jwt(user_id=str(user.id), email=user.email)
+    return user, password, token
+
+
+@pytest.fixture(name="auth_headers_user_a")
+def create_auth_headers_user_a(test_user_a) -> dict:
+    """
+    Create authorization headers for user A.
+
+    Args:
+        test_user_a: User A fixture.
+
+    Returns:
+        dict: Authorization headers with Bearer token.
+    """
+    _, _, token = test_user_a
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(name="auth_headers_user_b")
+def create_auth_headers_user_b(test_user_b) -> dict:
+    """
+    Create authorization headers for user B.
+
+    Args:
+        test_user_b: User B fixture.
+
+    Returns:
+        dict: Authorization headers with Bearer token.
+    """
+    _, _, token = test_user_b
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(name="test_task_user_a")
+def create_test_task_user_a(session: Session, test_user_a) -> Task:
+    """
+    Create test task owned by user A.
+
+    Args:
+        session: Database session.
+        test_user_a: User A fixture.
+
+    Returns:
+        Task: Created task for user A.
+    """
+    user, _, _ = test_user_a
+    task = Task(
+        title="User A's Task",
+        description="This task belongs to user A",
+        user_id=user.id,
+        priority="medium",
+        completed=False
+    )
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+    return task
+
+
+@pytest.fixture(name="test_task_user_b")
+def create_test_task_user_b(session: Session, test_user_b) -> Task:
+    """
+    Create test task owned by user B.
+
+    Args:
+        session: Database session.
+        test_user_b: User B fixture.
+
+    Returns:
+        Task: Created task for user B.
+    """
+    user, _, _ = test_user_b
+    task = Task(
+        title="User B's Task",
+        description="This task belongs to user B",
+        user_id=user.id,
+        priority="high",
+        completed=False
+    )
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+    return task
+
+
+@pytest.fixture(name="test_task_with_tags")
+def create_test_task_with_tags(session: Session, test_user_a) -> Task:
+    """
+    Create test task with 3 tags for user A.
+
+    Args:
+        session: Database session.
+        test_user_a: User A fixture.
+
+    Returns:
+        Task: Created task with tags.
+    """
+    user, _, _ = test_user_a
+    task = Task(
+        title="Task with Tags",
+        description="This task has multiple tags",
+        user_id=user.id,
+        priority="high",
+        completed=False
+    )
+    session.add(task)
+    session.flush()
+
+    # Add 3 tags
+    for tag_name in ["urgent", "work", "important"]:
+        tag = TaskTag(task_id=task.id, tag_name=tag_name)
+        session.add(tag)
+
+    session.commit()
+    session.refresh(task)
+    return task
+
+
+@pytest.fixture(name="test_task_no_tags")
+def create_test_task_no_tags(session: Session, test_user_a) -> Task:
+    """
+    Create test task with no tags for user A.
+
+    Args:
+        session: Database session.
+        test_user_a: User A fixture.
+
+    Returns:
+        Task: Created task without tags.
+    """
+    user, _, _ = test_user_a
+    task = Task(
+        title="Task without Tags",
+        description="This task has no tags",
+        user_id=user.id,
+        priority="low",
+        completed=False
+    )
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+    return task

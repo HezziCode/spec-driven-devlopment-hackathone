@@ -61,7 +61,27 @@
       "Bash(pytest:*)",
       "Bash(python -c:*)",
       "Bash(bash:*)",
-      "Bash(uv pip list:*)"
+      "Bash(uv pip list:*)",
+      "Bash(echo $BETTER_AUTH_SECRET)",
+      "Bash(timeout 10 uv run python -c \"\nimport sys\nsys.path.append\\(''.''\\)\nfrom routes.users import router\nprint\\(''Users router imported successfully''\\)\n\")",
+      "Bash(timeout 10 uv run python -c \"\nimport os\nos.environ[''BETTER_AUTH_SECRET''] = ''test-secret-key-at-least-32-characters-long-for-testing''\nfrom middleware.auth_middleware import get_user_id_from_token\nprint\\(''Auth middleware imported successfully with env var set''\\)\n\")",
+      "Bash(BETTER_AUTH_SECRET=\"test-secret-key-at-least-32-characters-long-for-testing\" timeout 10 uv run python -c \"\nfrom middleware.auth_middleware import get_user_id_from_token\nprint\\(''Auth middleware imported successfully''\\)\n\")",
+      "Bash(timeout 10 uv run pytest tests/test_tasks.py -k \"test_get_tasks\" --maxfail=1 -v)",
+      "Bash(cd /mnt/d/Side\\\\ Projects/giaic-hackathone/phase-2-fullstack-todo/frontend &&:*)",
+      "Bash(cd /mnt/d/Side\\\\ Projects/giaic-hackathone/phase-2-fullstack-todo/frontend && npx tsc --noEmit:*)",
+      "Bash(if [ -f /tmp/claude/-mnt-d-Side-Projects-giaic-hackathone-phase-2-fullstack-todo/tasks/b68ddb6.output ])",
+      "Bash(then cat /tmp/claude/-mnt-d-Side-Projects-giaic-hackathone-phase-2-fullstack-todo/tasks/b68ddb6.output)",
+      "Bash(else echo \"File not found or still processing\")",
+      "Bash(fi)",
+      "Bash(cd /mnt/d/Side\\\\ Projects/giaic-hackathone/phase-2-fullstack-todo/frontend && npx tsc:*)",
+      "Bash(npx next build --dry-run)",
+      "Bash(node -e \"require\\(''./lib/env.ts''\\)\")",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npm run build:*)",
+      "Bash(curl:*)",
+      "Bash(git fetch:*)",
+      "Bash(pkill:*)",
+      "Bash(npm run dev:*)"
     ]
   }
 }
