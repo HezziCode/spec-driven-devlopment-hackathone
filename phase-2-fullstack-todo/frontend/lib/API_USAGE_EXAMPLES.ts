@@ -5,9 +5,7 @@ import {
   authApi,
   taskApi,
   userApi,
-  logRequest,
-  logResponse,
-  logError,
+  buildQueryString,
 } from '@/lib/api';
 import { getCurrentUserId } from '@/lib/auth';
 import type {
