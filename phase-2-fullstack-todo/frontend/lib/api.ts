@@ -63,7 +63,7 @@ const apiRequest = async <T>(
 
     // Handle error responses
     if (!response.ok) {
-      let errorData: any = {};
+      let errorData: unknown = {};
       try {
         errorData = await response.json();
       } catch {
