@@ -1,9 +1,10 @@
 'use client';
 
 // Interactive task card component with flow-themed animations for TaskFlow Dashboard
-// Displays task information with priority badges and completion toggle - Dashboard Style
+// Displays task information with priority badges, completion toggle, edit, and delete actions
 
 import React, { useState } from 'react';
+import { Edit2, Trash2, X, Check } from 'lucide-react';
 
 interface TaskCardProps {
   id: string;
@@ -34,10 +35,28 @@ const TaskCard: React.FC<TaskCardProps> = ({
   onDelete,
   onEdit
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+
   // Handle completion toggle
   const handleToggleComplete = () => {
     if (onToggleComplete) {
       onToggleComplete(id, !completed);
+    }
+  };
+
+  // Handle delete confirmation
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete(id);
+      setShowConfirmDelete(false);
+    }
+  };
+
+  // Handle edit
+  const handleEdit = () => {
+    if (onEdit) {
+      onEdit({ id, title, description, completed, priority, tags, userId, createdAt, updatedAt });
     }
   };
 
@@ -58,46 +77,46 @@ const TaskCard: React.FC<TaskCardProps> = ({
     critical: "from-rose-100 to-rose-200 dark:from-rose-500/20 dark:to-rose-600/5 border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400",
   };
 
-  // Clean, distinct tag styling system - 6 main categories
+  // Subtle tag styling system - minimal and clean
   const getTagColor = (tag: string) => {
     const tagLower = tag.toLowerCase();
 
-    // work - Professional blue
+    // work - Subtle blue
     if (tagLower === 'work') {
-      return "bg-blue-600/40 text-blue-100 border-blue-400/60 shadow-lg shadow-blue-500/30 ring-1 ring-blue-400/30 font-semibold";
+      return "bg-blue-500/20 text-blue-300 border-blue-500/30";
     }
 
-    // personal - Warm purple
+    // personal - Subtle purple
     if (tagLower === 'personal') {
-      return "bg-purple-600/40 text-purple-100 border-purple-400/60 shadow-lg shadow-purple-500/30 ring-1 ring-purple-400/30 font-semibold";
+      return "bg-purple-500/20 text-purple-300 border-purple-500/30";
     }
 
-    // focus - Deep indigo
+    // focus - Subtle indigo
     if (tagLower === 'focus') {
-      return "bg-indigo-600/40 text-indigo-100 border-indigo-400/60 shadow-lg shadow-indigo-500/30 ring-1 ring-indigo-400/30 font-semibold";
+      return "bg-indigo-500/20 text-indigo-300 border-indigo-500/30";
     }
 
-    // meeting - Bright orange
+    // meeting - Subtle orange
     if (tagLower === 'meeting') {
-      return "bg-orange-600/40 text-orange-100 border-orange-400/60 shadow-lg shadow-orange-500/30 ring-1 ring-orange-400/30 font-semibold";
+      return "bg-orange-500/20 text-orange-300 border-orange-500/30";
     }
 
-    // urgent - BOLD red with pulse
+    // urgent - Red (slightly more visible)
     if (tagLower === 'urgent') {
-      return "bg-red-600/50 text-red-50 border-red-400/70 shadow-xl shadow-red-500/40 ring-2 ring-red-400/50 font-bold animate-pulse";
+      return "bg-red-500/25 text-red-300 border-red-500/40";
     }
 
-    // health - Fresh green
+    // health - Subtle green
     if (tagLower === 'health') {
-      return "bg-emerald-600/40 text-emerald-100 border-emerald-400/60 shadow-lg shadow-emerald-500/30 ring-1 ring-emerald-400/30 font-semibold";
+      return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
     }
 
     // Legacy support for existing user tags
-    if (tagLower === 'enjoyment') return "bg-indigo-600/40 text-indigo-100 border-indigo-400/60 shadow-lg shadow-indigo-500/30 ring-1 ring-indigo-400/30 font-semibold";
-    if (tagLower === 'friend zone') return "bg-pink-600/40 text-pink-100 border-pink-400/60 shadow-lg shadow-pink-500/30 ring-1 ring-pink-400/30 font-semibold";
+    if (tagLower === 'enjoyment') return "bg-indigo-500/20 text-indigo-300 border-indigo-500/30";
+    if (tagLower === 'friend zone') return "bg-pink-500/20 text-pink-300 border-pink-500/30";
 
     // Default for any other tags - Neutral gray/slate
-    return "bg-slate-600/30 text-slate-300 border-slate-500/40 shadow-sm shadow-slate-500/10";
+    return "bg-slate-600/20 text-slate-400 border-slate-500/30";
   };
 
   return (
@@ -108,9 +127,6 @@ const TaskCard: React.FC<TaskCardProps> = ({
             <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold bg-gradient-to-r ${priorityColors[priority]} font-display backdrop-blur-sm`}>
               {priority.charAt(0).toUpperCase() + priority.slice(1)}
             </span>
-            <div className="text-xs text-slate-500">
-              {formatDate(createdAt)}
-            </div>
           </div>
 
           <h3 className={`text-base font-semibold text-white mb-2 line-clamp-2 ${completed ? 'line-through text-slate-500' : ''} font-display`}>
@@ -128,7 +144,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
             ))}
           </div>
 
-          <div className="mt-auto">
+          <div className="mt-auto space-y-2">
             <button
                 onClick={handleToggleComplete}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 cursor-pointer
@@ -136,9 +152,59 @@ const TaskCard: React.FC<TaskCardProps> = ({
                     ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 backdrop-blur-sm'
                     : 'bg-gradient-to-r from-cyan-600/20 to-blue-600/20 hover:shadow-sm hover:shadow-cyan-500/10 text-cyan-300 border border-cyan-500/30 backdrop-blur-sm'}`}
             >
-                {completed ? <><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check w-3 h-3"><polyline points="20 6 9 17 4 12"></polyline></svg> Completed</> : 'Mark Complete'}
+                {completed ? <><Check className="w-3 h-3" /> Completed</> : 'Mark Complete'}
+            </button>
+
+            <div className="text-[10px] text-slate-500 flex justify-between items-center pt-1">
+              <span>Created: {formatDate(createdAt)}</span>
+              {updatedAt !== createdAt && (
+                <span>Updated: {formatDate(updatedAt)}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Edit and Delete Actions */}
+          <div className="absolute top-2 right-2 flex gap-1 opacity-100 transition-opacity duration-200 z-30">
+            <button
+              onClick={handleEdit}
+              className="p-1.5 rounded-lg bg-slate-700/50 hover:bg-cyan-600/30 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
+              title="Edit task"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setShowConfirmDelete(true)}
+              className="p-1.5 rounded-lg bg-slate-700/50 hover:bg-red-600/30 text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+              title="Delete task"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
+
+          {/* Delete Confirmation Modal */}
+          {showConfirmDelete && (
+            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-20 rounded-xl">
+              <div className="bg-slate-800 border border-slate-600 rounded-lg p-4 shadow-xl max-w-xs mx-4">
+                <p className="text-white text-sm font-medium mb-3 text-center">
+                  Delete this task?
+                </p>
+                <div className="flex gap-2 justify-center">
+                  <button
+                    onClick={() => setShowConfirmDelete(false)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-xs font-medium hover:bg-slate-600 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="px-3 py-1.5 rounded-lg bg-red-600/80 text-white text-xs font-medium hover:bg-red-600 transition-colors cursor-pointer"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-// Toast notification component for TaskWave Dashboard
+// Toast notification component for TaskFlow Dashboard
 // Features wave-themed styling with accessibility support
 
 import React, { useEffect, useState } from 'react';

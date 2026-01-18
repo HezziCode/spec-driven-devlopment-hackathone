@@ -37,21 +37,35 @@ const Navbar: React.FC<NavbarProps> = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 w-full backdrop-blur-md bg-slate-900/80 border-b border-slate-700/50 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+    <nav className="sticky top-0 z-50 w-full max-w-full backdrop-blur-md bg-slate-900/80 border-b border-slate-700/50 transition-colors duration-300">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center w-full max-w-full">
 
-        {/* Logo - Left side */}
-        <a href="/" className="inline-block">
-          <div className="flex items-center space-x-2 cursor-pointer">
-            <ListTodo className="w-6 h-6 text-cyan-600" />
-            <span className="text-xl font-extrabold tracking-wide text-white transition-colors">
-              TaskWave
-            </span>
-          </div>
-        </a>
+        {/* Left side - Logo only */}
+        <div className="flex items-center space-x-2">
+          {/* Logo */}
+          <a href="/" className="inline-block">
+            <div className="flex items-center space-x-2 cursor-pointer">
+              <ListTodo className="w-6 h-6 text-cyan-600" />
+              <span className="text-xl font-extrabold tracking-wide text-white transition-colors">
+                TaskFlow
+              </span>
+            </div>
+          </a>
+        </div>
 
-        {/* Right side - Auth button or Profile dropdown */}
+        {/* Right side - Task icon and Auth button or Profile dropdown */}
         <div className="flex items-center space-x-3">
+          {session && (
+            /* Task Page Icon */
+            <button
+              onClick={() => router.push('/tasks')}
+              className="p-2 rounded-lg hover:bg-slate-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Go to tasks page"
+              title="Tasks"
+            >
+              <ListTodo className="w-5 h-5 text-cyan-400" />
+            </button>
+          )}
           {session ? (
             /* Profile Dropdown */
             <ProfileDropdown

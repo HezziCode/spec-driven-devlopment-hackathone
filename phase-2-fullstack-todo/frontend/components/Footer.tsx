@@ -20,8 +20,8 @@ export default function Footer({ variant = 'default' }: FooterProps) {
   if (variant === 'minimal') {
     // Minimal footer for auth pages
     return (
-      <footer className="w-full py-6 px-4 border-t border-slate-700/50 bg-slate-900/30">
-        <div className="max-w-md mx-auto">
+      <footer className="w-full max-w-full py-6 px-4 border-t border-slate-700/50 bg-slate-900/30 overflow-x-hidden">
+        <div className="max-w-md mx-auto w-full max-w-full">
           {/* Links */}
           <div className="flex justify-center items-center space-x-6 mb-3">
             <Link
@@ -42,7 +42,7 @@ export default function Footer({ variant = 'default' }: FooterProps) {
           {/* Copyright */}
           <div className="text-center">
             <p className="text-xs text-slate-500">
-              {currentYear} TaskWave. All rights reserved.
+              {currentYear} TaskFlow. All rights reserved.
             </p>
           </div>
         </div>
@@ -52,14 +52,14 @@ export default function Footer({ variant = 'default' }: FooterProps) {
 
   // Default full footer
   return (
-    <footer className="w-full py-12 px-4 border-t border-slate-700/50 bg-slate-900/50 backdrop-blur-sm">
-      <div className="max-w-7xl mx-auto">
+    <footer className="w-full max-w-full py-12 px-4 border-t border-slate-700/50 bg-slate-900/50 backdrop-blur-sm overflow-x-hidden">
+      <div className="max-w-7xl mx-auto w-full max-w-full">
         {/* Footer Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center space-x-2">
-              <span className="text-xl font-extrabold text-white">TaskWave</span>
+              <span className="text-xl font-extrabold text-white">TaskFlow</span>
             </Link>
             <p className="text-sm text-slate-400">
               The modern way to manage your tasks.
@@ -127,7 +127,7 @@ export default function Footer({ variant = 'default' }: FooterProps) {
         {/* Bottom Copyright */}
         <div className="pt-8 border-t border-slate-700/50">
           <p className="text-center text-sm text-slate-500">
-            {currentYear} TaskWave. All rights reserved.
+            {currentYear} TaskFlow. All rights reserved.
           </p>
         </div>
       </div>

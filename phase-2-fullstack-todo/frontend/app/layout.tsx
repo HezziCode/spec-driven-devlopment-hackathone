@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, DM_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -24,15 +24,22 @@ export const metadata: Metadata = {
   description: "The minimalist, modern way to manage your tasks",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark overflow-x-hidden">
       <body
-        className={`${ibmPlexSans.variable} ${dmSans.variable} antialiased bg-slate-900`}
+        className={`${ibmPlexSans.variable} ${dmSans.variable} antialiased bg-slate-900 overflow-x-hidden`}
       >
         {children}
       </body>

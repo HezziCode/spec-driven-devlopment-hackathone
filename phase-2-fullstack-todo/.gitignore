@@ -103,3 +103,4 @@ frontend/.env*
 .env.local.production
 .env.staging
 .env.local.staging
+settings.local.json"infrastructure/helm/templates/secrets.yaml" 

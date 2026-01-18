@@ -4,12 +4,13 @@
 // Shows user tasks with filtering, creation, and management capabilities
 // Integrated with Backend API for real data persistence
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ListTodo, LogOut, ArrowRight, Bell, Command, Flame, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { ChatbotIcon } from '@/components/ChatbotIcon';
 import TaskCard from '@/components/TaskCard';
 import TaskForm from '@/components/TaskForm';
 import TaskFilters from '@/components/TaskFilters';
@@ -387,6 +388,75 @@ const TasksPageContent = () => {
     }
   };
 
+  // Edit a task
+  const editTask = async (title: string, description: string, priority: 'low' | 'medium' | 'high' | 'critical', tags: string[]) => {
+    if (!session?.user?.id || !editingTask) {
+      return;
+    }
+
+    try {
+      const updatedTask = await taskApi.patchTask(session.user.id, editingTask.id, {
+        title,
+        description,
+        priority: priority as PriorityEnum,
+        tags,
+      });
+
+      setTasks(tasks.map(task =>
+        task.id === editingTask.id
+          ? {
+              ...task,
+              title: updatedTask.title,
+              description: updatedTask.description,
+              priority: updatedTask.priority,
+              tags: updatedTask.tags,
+              updated_at: updatedTask.updated_at,
+            }
+          : task
+      ));
+
+      setEditingTask(null);
+      toast.success('Task updated successfully!');
+    } catch (error: any) {
+      console.error('Error updating task:', error);
+      toast.error(error.message || 'Failed to update task. Please try again.');
+    }
+  };
+
+  // Edit state
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to form when editing
+  useEffect(() => {
+    if (editingTask && formRef.current) {
+      // Add a small delay to ensure state has updated and React has re-rendered
+      const timer = setTimeout(() => {
+        // Scroll to the top of the form with extra offset for navbar
+        const formTop = formRef.current?.getBoundingClientRect().top;
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const navbarHeight = 80; // Account for navbar height
+
+        if (formTop !== undefined) {
+          window.scrollTo({
+            top: scrollTop + formTop - navbarHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 150);
+
+      return () => clearTimeout(timer);
+    }
+  }, [editingTask]);
+
+  const handleEditTask = (task: any) => {
+    setEditingTask(task);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTask(null);
+  };
+
   // Pagination calculations
   const totalPages = Math.ceil(totalTasks / itemsPerPage);
   const hasNextPage = currentPage < totalPages;
@@ -438,9 +508,9 @@ const TasksPageContent = () => {
   };
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute authMode="signup">
       <PageRouteTransitionProvider>
-        <div className="min-h-screen w-full bg-slate-900/40 transition-colors duration-300 relative overflow-x-hidden">
+        <div className="min-h-screen w-full max-w-full bg-slate-900/40 transition-colors duration-300 relative overflow-x-hidden">
           <GlobalStyles />
 
           {/* Toast Container */}
@@ -466,8 +536,8 @@ const TasksPageContent = () => {
               }}
             />
 
-          <main className="w-full px-4 py-8">
-            <div className="max-w-6xl mx-auto w-full">
+          <main className="w-full max-w-full px-4 py-8 overflow-x-hidden">
+            <div className="max-w-6xl mx-auto w-full max-w-full">
               {/* Premium Animated Hero Section */}
               <motion.section
                 initial={{ scale: 0.95, opacity: 0 }}
@@ -553,10 +623,37 @@ const TasksPageContent = () => {
                 `}</style>
               </motion.section>
 
-              {/* Task Creation Form - Positioned as Primary Element */}
-              <div className="mb-8 bg-slate-800/20 backdrop-blur-sm rounded-xl p-6 border border-slate-700/20">
-                <h2 className="text-2xl font-bold text-white mb-4">Create New Task</h2>
-                <TaskForm onSubmit={addTask} />
+              {/* Task Creation/Edit Form - Positioned as Primary Element */}
+              <div ref={formRef} className="mb-8 bg-slate-800/20 backdrop-blur-sm rounded-xl p-6 border border-slate-700/20">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold text-white">
+                    {editingTask ? 'Edit Task' : 'Create New Task'}
+                  </h2>
+                  {editingTask && (
+                    <button
+                      onClick={handleCancelEdit}
+                      className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-sm font-medium hover:bg-slate-600 transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+                {editingTask ? (
+                  <TaskForm
+                    onSubmit={editTask}
+                    onCancel={handleCancelEdit}
+                    initialData={{
+                      title: editingTask.title,
+                      description: editingTask.description,
+                      priority: editingTask.priority,
+                      tags: editingTask.tags,
+                    }}
+                    mode="edit"
+                    submitButtonText="Update Task"
+                  />
+                ) : (
+                  <TaskForm onSubmit={addTask} />
+                )}
               </div>
 
               {/* Premium Stats Section */}
@@ -650,6 +747,7 @@ const TasksPageContent = () => {
                             userId={task.user_id}
                             onToggleComplete={toggleTaskCompletion}
                             onDelete={deleteTask}
+                            onEdit={handleEditTask}
                           />
                         </motion.div>
                       ))}
@@ -737,6 +835,9 @@ const TasksPageContent = () => {
             </div>
           </main>
 
+          {/* Floating Chatbot Icon */}
+          <ChatbotIcon />
+
           <Footer />
         </div>
       </div>
@@ -749,7 +850,7 @@ const TasksPage = () => {
   return (
     <Suspense fallback={
       <ProtectedRoute>
-        <div className="min-h-screen flex items-center justify-center bg-slate-900">
+         <div className="min-h-screen flex items-center justify-center bg-slate-900">
           <WaveSpinner />
         </div>
       </ProtectedRoute>

@@ -48,10 +48,13 @@ if len(BETTER_AUTH_SECRET) < 32:
 # Public paths that bypass authentication
 PUBLIC_PATHS = [
     "/auth/",
+    "/api/auth/",  # For proxy/load balancer configurations that add /api prefix
     "/docs",
     "/redoc",
     "/openapi.json",
-    "/health"
+    "/health",
+    "/mcp/",  # MCP server endpoint for internal agent tool calls
+    "/api/ai/"  # AI tools endpoint for internal agent calls (bypasses auth since agent provides user_id)
 ]
 
 # Exact match paths (no prefix matching)
@@ -261,3 +264,32 @@ def get_user_id_from_token(request: Request) -> str:
         request.state.user_id.
     """
     return request.state.user_id
+
+
+async def get_current_user(request: Request) -> dict:
+    """
+    Dependency to get the current authenticated user.
+
+    This is a FastAPI dependency that can be used with Depends() to
+    ensure the user is authenticated and get their user information.
+
+    Args:
+        request: FastAPI request object with user context in state.
+
+    Returns:
+        Dictionary containing user information from JWT token.
+
+    Raises:
+        HTTPException 401: If user is not authenticated.
+    """
+    if not hasattr(request.state, 'user_id') or request.state.user_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated"
+        )
+
+    # Return user information from the request state
+    return {
+        "id": request.state.user_id,
+        "email": getattr(request.state, 'email', None)
+    }

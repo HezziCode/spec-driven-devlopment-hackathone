@@ -1,0 +1,48 @@
+openapi: 3.0.0
+info:
+  title: ChatKit Session API
+  description: API for managing ChatKit sessions with JWT authentication
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Development server
+
+paths:
+  /api/chatkit/session:
+    post:
+      summary: Create a new ChatKit session
+      description: Exchanges JWT token for a ChatKit client secret to establish a secure session
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully created ChatKit session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  client_secret:
+                    type: string
+                    description: The client secret for ChatKit authentication
+                    example: "chatkit_client_secret_abc123"
+                required:
+                  - client_secret
+        '401':
+          description: Unauthorized - Invalid or expired JWT token
+        '500':
+          description: Internal server error
+      tags:
+        - ChatKit
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from Better Auth
+
+tags:
+  - name: ChatKit
+    description: ChatKit session management endpoints

@@ -19,69 +19,7 @@ import type {
 import { getAuthToken } from './auth';
 
 // ===== Configuration =====
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
-
-// Development logging flag
-const isDevelopment = process.env.NODE_ENV === 'development';
-
-// ===== Logging Utilities =====
-
-/**
- * Development logger for API requests
- */
-const logRequest = (method: string, url: string, config: RequestInit): void => {
-  if (!isDevelopment) return;
-
-  console.log(`[API] ${method} ${url}`, {
-    headers: config.headers,
-    body: config.body ? JSON.parse(config.body as string) : undefined,
-  });
-};
-
-/**
- * Development logger for API responses
- */
-const logResponse = (method: string, url: string, status: number, data: any): void => {
-  if (!isDevelopment) return;
-
-  const logLevel = status >= 400 ? 'error' : 'log';
-  (console[logLevel as keyof Console] as (...args: any[]) => void)(`[API] ${method} ${url} ${status}`, data);
-};
-
-/**
- * Development logger for API errors
- */
-const logError = (method: string, url: string, error: Error): void => {
-  if (!isDevelopment) return;
-
-  console.error(`[API] ${method} ${url} ERROR`, {
-    message: error.message,
-    stack: error.stack,
-  });
-};
-
-// ===== Query String Building =====
-
-/**
- * Build query string from parameters object
- * Filters out undefined values and properly encodes special characters
- */
-const buildQueryString = (params?: Record<string, any>): string => {
-  if (!params || Object.keys(params).length === 0) {
-    return '';
-  }
-
-  const queryParams = new URLSearchParams();
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      queryParams.append(key, String(value));
-    }
-  });
-
-  const queryString = queryParams.toString();
-  return queryString ? `?${queryString}` : '';
-};
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 // ===== Core API Request Function =====
 
@@ -120,14 +58,8 @@ const apiRequest = async <T>(
     };
   }
 
-  // Log request in development
-  logRequest(method, url, config);
-
   try {
     const response = await fetch(url, config);
-
-    // Log response in development
-    logResponse(method, url, response.status, null);
 
     // Handle error responses
     if (!response.ok) {
@@ -138,8 +70,6 @@ const apiRequest = async <T>(
         // Response body is not JSON
         errorData = { error: response.statusText };
       }
-
-      logError(method, url, new Error(JSON.stringify(errorData)));
 
       // Extract error message from various formats
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -182,17 +112,13 @@ const apiRequest = async <T>(
       contentLength === '0' ||
       response.headers.get('content-type')?.includes('text/plain')
     ) {
-      logResponse(method, url, response.status, {});
       return {} as T;
     }
 
     // Parse and return JSON response
     const data = await response.json();
-    logResponse(method, url, response.status, data);
-
     return data as T;
   } catch (error) {
-    logError(method, url, error as Error);
     throw error;
   }
 };
@@ -254,9 +180,17 @@ export const taskApi = {
     userId: string,
     params?: TaskQueryParams
   ): Promise<TaskListResponse> => {
-    const queryString = buildQueryString(params);
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.offset) searchParams.set('offset', params.offset.toString());
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.priority) searchParams.set('priority', params.priority);
+    if (params?.tag) searchParams.set('tag', params.tag);
+    if (params?.search) searchParams.set('search', params.search);
+
+    const queryString = searchParams.toString();
     return apiRequest<TaskListResponse>(
-      `/users/${userId}/tasks${queryString}`
+      `/users/${userId}/tasks${queryString ? '?' + queryString : ''}`
     );
   },
 
@@ -381,17 +315,9 @@ export const userApi = {
 
 // ===== Exports =====
 
-export {
-  buildQueryString,
-  logRequest,
-  logResponse,
-  logError,
-};
-
 export default {
   authApi,
   taskApi,
   userApi,
   apiRequest,
-  buildQueryString,
 };

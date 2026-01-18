@@ -1,0 +1,347 @@
+# MCP Tools Contract Specification
+# Feature: 014-mcp-todo-server
+# Date: 2025-12-30
+
+openapi: 3.0.0
+info:
+  title: MCP Todo Server Tools
+  version: 1.0.0
+  description: |
+    MCP tool definitions for Todo management.
+    These tools are exposed via FastMCP for AI agent consumption.
+
+# MCP Tool Definitions (converted from MCP schema format)
+paths:
+  /tools/create_task:
+    post:
+      operationId: create_task
+      summary: Create a new task for the user
+      description: |
+        Creates a new task with the given title and optional description.
+        The task is created in pending (not completed) state.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskInput'
+      responses:
+        '200':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+              example:
+                task_id: "550e8400-e29b-41d4-a716-446655440000"
+                status: "created"
+                title: "Buy groceries"
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tools/list_tasks:
+    post:
+      operationId: list_tasks
+      summary: List tasks for a user with optional filtering
+      description: |
+        Returns all tasks for the specified user.
+        Can filter by status: all, pending, or completed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListTasksInput'
+      responses:
+        '200':
+          description: Tasks retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+
+  /tools/mark_complete:
+    post:
+      operationId: mark_complete
+      summary: Mark a task as completed
+      description: |
+        Marks the specified task as completed.
+        Idempotent - calling on already completed task succeeds.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskIdInput'
+      responses:
+        '200':
+          description: Task marked complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+              example:
+                task_id: "550e8400-e29b-41d4-a716-446655440000"
+                status: "completed"
+                title: "Buy groceries"
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tools/update_task:
+    post:
+      operationId: update_task
+      summary: Update task title and/or description
+      description: |
+        Updates the specified fields of an existing task.
+        At least one of title or description must be provided.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskInput'
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tools/delete_task:
+    post:
+      operationId: delete_task
+      summary: Permanently delete a task
+      description: |
+        Removes the specified task from the database.
+        This operation cannot be undone.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskIdInput'
+      responses:
+        '200':
+          description: Task deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+              example:
+                task_id: "550e8400-e29b-41d4-a716-446655440000"
+                status: "deleted"
+                title: "Buy groceries"
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tools/search_tasks:
+    post:
+      operationId: search_tasks
+      summary: Search tasks by keyword
+      description: |
+        Searches for tasks where the title or description contains
+        the query string. Case-insensitive matching.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchTasksInput'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+
+components:
+  schemas:
+    CreateTaskInput:
+      type: object
+      required:
+        - user_id
+        - title
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: User UUID who owns the task
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Task title
+        description:
+          type: string
+          maxLength: 2000
+          default: ""
+          description: Optional task description
+
+    ListTasksInput:
+      type: object
+      required:
+        - user_id
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: User UUID
+        status:
+          type: string
+          enum: [all, pending, completed]
+          default: all
+          description: Filter by completion status
+
+    TaskIdInput:
+      type: object
+      required:
+        - user_id
+        - task_id
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: User UUID who owns the task
+        task_id:
+          type: string
+          format: uuid
+          description: Task UUID to operate on
+
+    UpdateTaskInput:
+      type: object
+      required:
+        - user_id
+        - task_id
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: User UUID who owns the task
+        task_id:
+          type: string
+          format: uuid
+          description: Task UUID to update
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: New task title
+        description:
+          type: string
+          maxLength: 2000
+          description: New task description
+
+    SearchTasksInput:
+      type: object
+      required:
+        - user_id
+        - query
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: User UUID
+        query:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Search query string
+
+    TaskResponse:
+      type: object
+      required:
+        - task_id
+        - status
+        - title
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [created, updated, deleted, completed]
+        title:
+          type: string
+
+    TaskListResponse:
+      type: object
+      required:
+        - tasks
+        - total
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskDetail'
+        total:
+          type: integer
+          minimum: 0
+
+    TaskDetail:
+      type: object
+      required:
+        - id
+        - title
+        - completed
+        - priority
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        completed:
+          type: boolean
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+        code:
+          type: string
+          enum: [NOT_FOUND, VALIDATION_ERROR, DATABASE_ERROR, USER_NOT_FOUND]
+          description: Error code for programmatic handling
+        task_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Task ID if applicable

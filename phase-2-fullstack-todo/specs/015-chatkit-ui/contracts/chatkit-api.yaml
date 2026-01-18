@@ -1,0 +1,361 @@
+openapi: 3.1.0
+info:
+  title: ChatKit API Endpoints
+  description: API contracts for ChatKit UI feature - session management and thread persistence
+  version: 1.0.0
+  contact:
+    name: TaskWave API Team
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.taskwave.com
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /api/chatkit/session:
+    post:
+      summary: Create ChatKit session
+      description: Exchange JWT token for ChatKit client secret to establish chat session
+      operationId: createChatKitSession
+      tags:
+        - ChatKit
+      security:
+        - BearerAuth: []
+      responses:
+        '201':
+          description: Session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+              example:
+                client_secret: "cs_1234567890abcdef"
+                expires_at: "2025-12-31T23:59:59Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/users/{user_id}/chatkit/threads:
+    get:
+      summary: List user's chat threads
+      description: Retrieve all chat threads for authenticated user with metadata
+      operationId: listChatThreads
+      tags:
+        - ChatKit Threads
+      parameters:
+        - $ref: '#/components/parameters/UserIdParam'
+        - name: limit
+          in: query
+          description: Maximum number of threads to return
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Number of threads to skip for pagination
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Thread list retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/users/{user_id}/chatkit/threads/{thread_id}/sync:
+    post:
+      summary: Sync thread metadata
+      description: Update or create thread metadata in backend for persistence
+      operationId: syncChatThread
+      tags:
+        - ChatKit Threads
+      parameters:
+        - $ref: '#/components/parameters/UserIdParam'
+        - name: thread_id
+          in: path
+          required: true
+          description: ChatKit thread identifier
+          schema:
+            type: string
+            maxLength: 100
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ThreadSyncRequest'
+      responses:
+        '200':
+          description: Thread metadata synced successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadItem'
+        '201':
+          description: New thread created and synced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadItem'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/users/{user_id}/chatkit/threads/{thread_id}:
+    delete:
+      summary: Delete chat thread
+      description: Remove chat thread and its metadata from backend storage
+      operationId: deleteChatThread
+      tags:
+        - ChatKit Threads
+      parameters:
+        - $ref: '#/components/parameters/UserIdParam'
+        - name: thread_id
+          in: path
+          required: true
+          description: ChatKit thread identifier
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Thread deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Thread deleted successfully"
+                  thread_id:
+                    type: string
+                    example: "thread_abc123"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from Better Auth authentication
+
+  parameters:
+    UserIdParam:
+      name: user_id
+      in: path
+      required: true
+      description: User UUID from authenticated JWT token
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    SessionResponse:
+      type: object
+      required:
+        - client_secret
+        - expires_at
+      properties:
+        client_secret:
+          type: string
+          description: ChatKit client secret for session establishment
+          example: "cs_1234567890abcdef"
+        expires_at:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when session expires
+          example: "2025-12-31T23:59:59Z"
+
+    ThreadItem:
+      type: object
+      required:
+        - id
+        - name
+        - message_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          maxLength: 100
+          description: Unique thread identifier from ChatKit
+          example: "thread_abc123"
+        name:
+          type: string
+          maxLength: 100
+          description: Display name for the thread
+          example: "Task Planning Discussion"
+        last_message_preview:
+          type: string
+          maxLength: 200
+          nullable: true
+          description: Preview of the last message in thread
+          example: "Can you help me create a task for..."
+        message_count:
+          type: integer
+          minimum: 0
+          description: Total number of messages in thread
+          example: 15
+        created_at:
+          type: string
+          format: date-time
+          description: Thread creation timestamp
+          example: "2025-12-30T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2025-12-31T14:30:00Z"
+
+    ThreadListResponse:
+      type: object
+      required:
+        - threads
+        - total
+      properties:
+        threads:
+          type: array
+          items:
+            $ref: '#/components/schemas/ThreadItem'
+          description: Array of thread objects
+        total:
+          type: integer
+          minimum: 0
+          description: Total number of threads for this user
+          example: 25
+
+    ThreadSyncRequest:
+      type: object
+      required:
+        - thread_id
+        - name
+        - message_count
+      properties:
+        thread_id:
+          type: string
+          maxLength: 100
+          description: ChatKit thread identifier
+          example: "thread_abc123"
+        name:
+          type: string
+          maxLength: 100
+          description: Display name for the thread
+          example: "Task Planning Discussion"
+        last_message_preview:
+          type: string
+          maxLength: 200
+          nullable: true
+          description: Preview of the last message
+          example: "Can you help me create a task for..."
+        message_count:
+          type: integer
+          minimum: 0
+          description: Total number of messages in thread
+          example: 15
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - code
+        - timestamp
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Missing or invalid JWT token"
+        code:
+          type: string
+          description: Machine-readable error code
+          example: "UNAUTHORIZED"
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when error occurred
+          example: "2025-12-31T12:00:00Z"
+
+  responses:
+    BadRequestError:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Invalid request body: 'name' is required"
+            code: "BAD_REQUEST"
+            timestamp: "2025-12-31T12:00:00Z"
+
+    UnauthorizedError:
+      description: Unauthorized - missing or invalid JWT token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Missing or invalid JWT token"
+            code: "UNAUTHORIZED"
+            timestamp: "2025-12-31T12:00:00Z"
+
+    ForbiddenError:
+      description: Forbidden - user not authorized to access this resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "User ID in path does not match authenticated user"
+            code: "FORBIDDEN"
+            timestamp: "2025-12-31T12:00:00Z"
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Thread with ID 'thread_abc123' not found"
+            code: "NOT_FOUND"
+            timestamp: "2025-12-31T12:00:00Z"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Failed to generate ChatKit client secret"
+            code: "INTERNAL_SERVER_ERROR"
+            timestamp: "2025-12-31T12:00:00Z"
+
+tags:
+  - name: ChatKit
+    description: ChatKit session management endpoints
+  - name: ChatKit Threads
+    description: Chat thread persistence and management endpoints

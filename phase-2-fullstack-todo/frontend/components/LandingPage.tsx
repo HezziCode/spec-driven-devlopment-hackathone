@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import {
   Sun,
   Moon,
@@ -10,7 +10,8 @@ import {
   Zap,
   Layers,
   Home,
-  Users
+  Users,
+  MessageCircle
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -19,18 +20,6 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ handleAuthAction }) => {
   const isDarkMode = true; // Always use dark mode
-  // State to track mouse position relative to the container for the spotlight effect
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-
-  // Handler to update mouse position on movement
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    // Calculate coordinates relative to the bounding box of the target element (e.currentTarget)
-    const bounds = e.currentTarget.getBoundingClientRect();
-    setMousePosition({
-      x: e.clientX - bounds.left,
-      y: e.clientY - bounds.top,
-    });
-  }, []);
 
   // Dark theme classes only
   const backgroundClasses = 'bg-slate-800/80 text-white'; // Removed transparency for cleaner dark theme appearance
@@ -60,11 +49,28 @@ const LandingPage: React.FC<LandingPageProps> = ({ handleAuthAction }) => {
     },
   ];
 
+
+  // Function to handle navigation to chat page
+  const handleChatNavigation = () => {
+    window.location.href = '/chat';
+  };
+
   return (
-    <div className="flex flex-col items-center justify-start p-4 text-center w-full">
+    <div className="flex flex-col items-center justify-start p-4 text-center w-full max-w-full overflow-x-hidden">
+      {/* Floating Chat Button */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <button
+          onClick={handleChatNavigation}
+          className="p-4 rounded-full bg-cyan-600 hover:bg-cyan-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110"
+          aria-label="Open chat assistant"
+          title="Chat with AI Assistant"
+        >
+          <MessageCircle className="w-6 h-6" />
+        </button>
+      </div>
 
       {/* 1. Hero Section */}
-      <section className="flex flex-col items-center justify-center pt-16 pb-16 w-full max-w-7xl min-h-[calc(100vh-64px)]">
+      <section className="flex flex-col items-center justify-center pt-16 pb-16 w-full max-w-full px-4 min-h-[calc(100vh-64px)]">
         <div
           className="max-w-4xl w-full p-4 md:p-8 space-y-6 transition-all duration-500 ease-out text-white"
         >
@@ -125,7 +131,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ handleAuthAction }) => {
       </section>
 
       {/* 2. Main Feature Section */}
-      <section className="w-full max-w-7xl py-8 sm:py-16 px-4 sm:px-6 lg:px-8">
+      <section className="w-full max-w-full py-8 sm:py-16 px-4 sm:px-6 lg:px-8">
 <h2 className="text-3xl sm:text-4xl font-extrabold mb-3 sm:mb-4 text-white">
   Designed for{" "}
   <span className="relative inline-block">

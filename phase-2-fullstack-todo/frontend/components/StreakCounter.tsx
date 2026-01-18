@@ -1,6 +1,6 @@
 'use client';
 
-// Streak counter component with wave-themed animations for TaskWave Dashboard
+// Streak counter component with wave-themed animations for TaskFlow Dashboard
 // Displays user's completion streak with visual feedback
 
 import React, { useState, useEffect } from 'react';

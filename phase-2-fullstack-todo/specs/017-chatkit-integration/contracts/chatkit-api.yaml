@@ -1,0 +1,291 @@
+# API Contracts: ChatKit Frontend-Backend Integration
+
+## Overview
+This document defines the API contracts for the ChatKit integration, including request/response schemas, authentication requirements, and data flow patterns.
+
+## Backend API Endpoints
+
+### 1. ChatKit Session Management
+
+#### POST /api/chatkit/session
+Create an authenticated chat session with a temporary client secret.
+
+**Authentication**: JWT token required in Authorization header
+
+**Request**:
+- Method: POST
+- Headers: `Authorization: Bearer {jwt_token}`
+- Body: None required
+
+**Response**:
+- Success: 201 Created
+- Content-Type: application/json
+- Body:
+```json
+{
+  "client_secret": "string",
+  "expires_at": "string (ISO 8601 timestamp)"
+}
+```
+
+**Error Responses**:
+- 401 Unauthorized: Invalid or expired JWT token
+- 500 Internal Server Error: Server error creating session
+
+**Example Request**:
+```
+POST /api/chatkit/session
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Example Response**:
+```
+Status: 201 Created
+{
+  "client_secret": "cs_xxxx_xxxxxxxxxxxxxxxxxxxxxx",
+  "expires_at": "2026-01-02T12:00:00Z"
+}
+```
+
+### 2. Chat Message Streaming
+
+#### POST /api/chatkit
+Send a message and receive a streaming AI response via Server-Sent Events.
+
+**Authentication**: JWT token required in Authorization header
+
+**Request**:
+- Method: POST
+- Headers: `Authorization: Bearer {jwt_token}`, `Content-Type: application/json`
+- Body:
+```json
+{
+  "thread_id": "string (optional)",
+  "message": "string (required)"
+}
+```
+
+**Response**:
+- Success: 200 OK
+- Content-Type: text/event-stream
+- Body: Server-sent events stream with format:
+```
+event: message
+data: {"content": "response text"}
+
+event: client_effect
+data: {"type": "task_created", "data": {...}}
+
+event: done
+data: {"thread_id": "new_thread_id"}
+```
+
+**Error Responses**:
+- 401 Unauthorized: Invalid JWT token
+- 422 Unprocessable Entity: Invalid request body
+- 500 Internal Server Error: AI service error
+
+### 3. Thread Management
+
+#### GET /api/users/{user_id}/chatkit/threads
+List all chat threads for a specific user with pagination support.
+
+**Authentication**: JWT token required in Authorization header
+**User Isolation**: Only threads belonging to authenticated user are returned
+
+**Request**:
+- Method: GET
+- Path Parameters: `user_id` (UUID string)
+- Headers: `Authorization: Bearer {jwt_token}`
+- Query Parameters:
+  - `limit` (integer, default: 50, max: 100)
+  - `offset` (integer, default: 0)
+
+**Response**:
+- Success: 200 OK
+- Content-Type: application/json
+- Body:
+```json
+{
+  "threads": [
+    {
+      "id": "string",
+      "name": "string",
+      "last_message_preview": "string (nullable)",
+      "message_count": "integer",
+      "created_at": "string (ISO 8601 timestamp)",
+      "updated_at": "string (ISO 8601 timestamp)"
+    }
+  ],
+  "total": "integer"
+}
+```
+
+**Error Responses**:
+- 401 Unauthorized: Invalid JWT token
+- 403 Forbidden: User ID doesn't match authenticated user
+- 500 Internal Server Error: Server error
+
+#### POST /api/users/{user_id}/chatkit/threads/{thread_id}/sync
+Sync thread metadata to backend for persistence.
+
+**Authentication**: JWT token required in Authorization header
+**User Isolation**: Only threads belonging to authenticated user can be synced
+
+**Request**:
+- Method: POST
+- Path Parameters: `user_id` (UUID string), `thread_id` (string)
+- Headers: `Authorization: Bearer {jwt_token}`, `Content-Type: application/json`
+- Body:
+```json
+{
+  "name": "string",
+  "last_message_preview": "string (nullable)",
+  "message_count": "integer"
+}
+```
+
+**Response**:
+- Success: 200 OK
+- Content-Type: application/json
+- Body:
+```json
+{
+  "id": "string",
+  "name": "string",
+  "last_message_preview": "string (nullable)",
+  "message_count": "integer",
+  "created_at": "string (ISO 8601 timestamp)",
+  "updated_at": "string (ISO 8601 timestamp)"
+}
+```
+
+**Error Responses**:
+- 401 Unauthorized: Invalid JWT token
+- 403 Forbidden: User ID doesn't match authenticated user
+- 404 Not Found: Thread not found
+- 500 Internal Server Error: Server error
+
+## Frontend API Client Interface
+
+### 1. Session Management
+```typescript
+interface ChatKitAPIClient {
+  // Create a new chat session
+  createSession(): Promise<{ client_secret: string; expires_at: string }>;
+
+  // Fetch user's chat threads
+  fetchThreads(userId: string, limit?: number, offset?: number): Promise<{
+    threads: ThreadMetadata[];
+    total: number;
+  }>;
+
+  // Sync thread metadata
+  syncThread(userId: string, threadId: string, metadata: ThreadSyncData): Promise<ThreadMetadata>;
+}
+```
+
+### 2. Thread Metadata
+```typescript
+interface ThreadMetadata {
+  id: string;
+  name: string;
+  last_message_preview: string | null;
+  message_count: number;
+  created_at: string;  // ISO 8601
+  updated_at: string;  // ISO 8601
+}
+
+interface ThreadSyncData {
+  name: string;
+  last_message_preview: string | null;
+  message_count: number;
+}
+```
+
+## Authentication Flow
+
+### 1. Session Initialization
+1. Frontend component calls `useChatKit` hook
+2. Hook calls `getClientSecret` function
+3. Function makes POST request to `/api/chatkit/session`
+4. Backend validates JWT token from Better Auth
+5. Backend generates temporary client secret
+6. Backend returns client secret to frontend
+7. Frontend initializes ChatKit with client secret
+
+### 2. Message Exchange
+1. User sends message in ChatKit interface
+2. Frontend sends message to `/api/chatkit` endpoint
+3. Backend validates JWT token
+4. Backend processes message with AI agent
+5. Backend streams response via Server-Sent Events
+6. Frontend receives and displays response
+
+## Error Handling Contracts
+
+### Backend Error Format
+```json
+{
+  "error": "Error message",
+  "code": "ERROR_CODE",
+  "timestamp": "ISO 8601 timestamp"
+}
+```
+
+### Common Error Codes
+- `AUTHENTICATION_REQUIRED`: No valid JWT token provided
+- `AUTHORIZATION_FAILED`: JWT token doesn't match requested resource
+- `RESOURCE_NOT_FOUND`: Requested thread/user doesn't exist
+- `VALIDATION_ERROR`: Request body doesn't match schema
+- `INTERNAL_ERROR`: Server-side processing error
+
+## Client Effect Events
+
+The backend sends special events to trigger UI updates in the frontend:
+
+### Task Events
+````
+event: client_effect
+data: {"type": "task_created", "data": {"task_id": "uuid", "title": "Task Title"}}
+
+event: client_effect
+data: {"type": "task_updated", "data": {"task_id": "uuid", "title": "Updated Title"}}
+
+event: client_effect
+data: {"type": "task_deleted", "data": {"task_id": "uuid"}}
+
+event: client_effect
+data: {"type": "task_completed", "data": {"task_id": "uuid", "completed": true}}
+```
+
+## Data Validation
+
+### Request Validation
+- All string fields must be non-empty (except explicitly nullable fields)
+- UUID fields must follow standard UUID format
+- Timestamps must be in ISO 8601 format
+- Thread IDs must be valid identifiers
+
+### Response Validation
+- All required fields must be present
+- Data types must match schema definitions
+- Foreign key relationships must be valid
+- User isolation must be enforced
+
+## Security Considerations
+
+### Authentication
+- All endpoints require valid JWT tokens
+- User ID in path parameters must match authenticated user
+- Session tokens have limited lifetime (24 hours)
+
+### Authorization
+- Users can only access their own threads
+- Thread modification requires ownership
+- Client secrets are single-use and time-limited
+
+### Data Protection
+- Passwords and tokens are never exposed in responses
+- Sensitive data is properly sanitized
+- PII is handled according to privacy policies

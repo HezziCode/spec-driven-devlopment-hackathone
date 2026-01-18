@@ -8,17 +8,32 @@ from models import Task, TaskTag, User
 from schemas.task import TaskCreate, TaskUpdate, PriorityEnum
 
 
-def create_task(session: Session, task_data: TaskCreate, user_id: UUID) -> Task:
+def create_task(
+    session: Session,
+    task_data: TaskCreate,
+    user_id: UUID,
+    source: str = "manual",
+    thread_id: Optional[str] = None
+) -> Task:
     """
     Create a new task for a user.
+
+    Args:
+        session: Database session
+        task_data: Task creation data
+        user_id: User UUID
+        source: Task creation source ('manual' or 'chat')
+        thread_id: Optional chat thread ID if created from chat
     """
-    # Create the task
+    # Create the task with source tracking
     task = Task(
         title=task_data.title,
         description=task_data.description,
         completed=False,  # Default to not completed
         priority=task_data.priority or PriorityEnum.medium,
-        user_id=user_id
+        user_id=user_id,
+        source=source,
+        created_by_thread_id=thread_id if source == "chat" else None
     )
 
     session.add(task)
@@ -162,12 +177,13 @@ def update_task(
 
     # Handle tags if provided
     if task_data.tags is not None:
-        # Remove existing tags
-        existing_tags = session.exec(
-            select(TaskTag).where(TaskTag.task_id == task.id)
-        ).all()
-        for tag in existing_tags:
-            session.delete(tag)
+        # Delete all existing tags for this task first
+        from sqlalchemy import delete as sql_delete
+        delete_stmt = sql_delete(TaskTag).where(TaskTag.task_id == task.id)
+        session.exec(delete_stmt)
+
+        # Flush to ensure delete completes before inserts
+        session.flush()
 
         # Add new tags
         for tag_name in task_data.tags:
@@ -182,11 +198,9 @@ def update_task(
     session.commit()
     session.refresh(task)
 
-    # Add tags to the task response
-    task_tags = session.exec(
-        select(TaskTag).where(TaskTag.task_id == task.id)
-    ).all()
-    task.tags = [tag.tag_name for tag in task_tags]
+    # Force load the tags relationship to ensure they're TaskTag objects
+    # This prevents lazy loading issues when the task is accessed outside the session
+    _ = task.tags  # Access tags to trigger loading if not already loaded
 
     return task
 

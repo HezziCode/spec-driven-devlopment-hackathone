@@ -10,14 +10,18 @@ interface TaskFormProps {
   onCancel?: () => void;
   initialData?: Partial<{ title: string; description: string; priority: 'low' | 'medium' | 'high' | 'critical'; tags: string[] }>;
   submitButtonText?: string;
+  mode?: 'create' | 'edit';
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
   onSubmit,
   onCancel,
   initialData = {},
-  submitButtonText = 'Deploy Strategy'
+  submitButtonText,
+  mode = 'create'
 }) => {
+  const isEdit = mode === 'edit';
+  const buttonText = submitButtonText || (isEdit ? 'Update Task' : 'Deploy Strategy');
   const [title, setTitle] = useState(initialData.title || '');
   const [description, setDescription] = useState(initialData.description || '');
   const [priority, setPriority] = useState(initialData.priority || 'medium');
@@ -58,7 +62,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
       onSubmit?.(title.trim(), description, priority as 'low' | 'medium' | 'high' | 'critical', tags);
 
       // Reset form if not editing existing task
-      if (!initialData?.title) {
+      if (!isEdit && !initialData?.title) {
         setTitle('');
         setDescription('');
         setPriority('medium');
@@ -232,7 +236,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
         type="submit"
         className="w-full py-2.5 mt-2 bg-gradient-to-r from-cyan-600/80 to-teal-600/80 hover:from-cyan-500/80 hover:to-teal-500/80 text-white font-semibold rounded-lg transition-all duration-300 active:scale-[0.98] border border-cyan-500/30 backdrop-blur-sm"
       >
-        {submitButtonText}
+        {buttonText}
       </button>
     </form>
   );

@@ -1,0 +1,219 @@
+openapi: 3.1.0
+info:
+  title: ChatKit API
+  version: 1.0.0
+  description: AI Chat server with streaming responses
+
+paths:
+  /chatkit:
+    post:
+      summary: Send a chat message and receive streaming AI response
+      tags:
+        - Chat
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Streaming response (text/event-stream)
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: event-stream
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  /chatkit/threads:
+    get:
+      summary: List user's conversation threads
+      tags:
+        - Threads
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of threads
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadListResponse'
+
+  /chatkit/threads/{thread_id}:
+    get:
+      summary: Get thread details with messages
+      tags:
+        - Threads
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: thread_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Thread with messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadDetailResponse'
+        '403':
+          description: Not authorized to access this thread
+        '404':
+          description: Thread not found
+
+    delete:
+      summary: Delete a thread and all its messages
+      tags:
+        - Threads
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: thread_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Thread deleted successfully
+        '403':
+          description: Not authorized to delete this thread
+        '404':
+          description: Thread not found
+
+components:
+  schemas:
+    ChatRequest:
+      type: object
+      required:
+        - message
+      properties:
+        thread_id:
+          type: string
+          format: uuid
+          description: Optional thread ID for continuing conversation
+        message:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          description: User's message content
+
+    ChatResponse:
+      type: object
+      description: Non-streaming response (for comparison)
+      properties:
+        thread_id:
+          type: string
+          format: uuid
+        response:
+          type: string
+          description: AI generated response
+
+    ThreadListItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+        message_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ThreadListResponse:
+      type: object
+      properties:
+        threads:
+          type: array
+          items:
+            $ref: '#/components/schemas/ThreadListItem'
+        total:
+          type: integer
+
+    ThreadDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+            - user
+            - assistant
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

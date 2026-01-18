@@ -1,6 +1,6 @@
 'use client';
 
-// Reusable wave-themed button component for TaskWave Dashboard
+// Reusable wave-themed button component for TaskFlow Dashboard
 // Features wave animations and teal/cyan gradient theme
 
 import React from 'react';

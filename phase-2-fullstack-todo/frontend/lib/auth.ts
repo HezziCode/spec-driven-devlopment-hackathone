@@ -1,5 +1,5 @@
 // Authentication utilities for TaskWave Dashboard
-// Integrates Backend API with JWT token management
+// Simple auth management with JWT tokens
 
 'use client';
 
@@ -10,12 +10,11 @@ import { authApi } from './api';
 
 /**
  * JWT Token payload structure
- * Note: Backend uses "sub" (standard JWT claim) for user ID
  */
 interface JwtPayload {
   exp: number;
   iat: number;
-  sub: string;  // Standard JWT "subject" claim (user ID)
+  sub: string;  // User ID
   email: string;
   username?: string;
   [key: string]: any;
@@ -47,25 +46,14 @@ export interface UseAuthReturn {
 }
 
 // Storage key for JWT token
-const TOKEN_STORAGE_KEY = 'better-auth-session-token';
+const TOKEN_STORAGE_KEY = 'auth-token';
 
 /**
  * Get authentication token from storage
  */
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
-
-  // Try localStorage first
-  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-  if (token) return token;
-
-  // Fallback to cookies
-  const cookieValue = document.cookie
-    .split('; ')
-    .find(row => row.startsWith(`${TOKEN_STORAGE_KEY}=`))
-    ?.split('=')[1];
-
-  return cookieValue || null;
+  return localStorage.getItem(TOKEN_STORAGE_KEY);
 }
 
 /**
@@ -116,81 +104,6 @@ export function isAuthenticated(): boolean {
 }
 
 /**
- * Get current user ID from token
- * Uses "sub" claim (standard JWT subject field)
- */
-export function getCurrentUserId(): string | null {
-  const token = getAuthToken();
-  if (!token) return null;
-
-  const payload = decodeToken(token);
-  return payload?.sub || null;
-}
-
-/**
- * Get current user email from token
- */
-export function getCurrentUserEmail(): string | null {
-  const token = getAuthToken();
-  if (!token) return null;
-
-  const payload = decodeToken(token);
-  return payload?.email || null;
-}
-
-/**
- * Get current username from token
- */
-export function getCurrentUsername(): string | null {
-  const token = getAuthToken();
-  if (!token) return null;
-
-  const payload = decodeToken(token);
-  return payload?.username || payload?.email?.split('@')[0] || null;
-}
-
-/**
- * Convert AuthResponse to Session
- */
-function authResponseToSession(authResponse: AuthResponse): Session {
-  const payload = decodeToken(authResponse.token);
-
-  return {
-    user: {
-      id: authResponse.user.id,
-      email: authResponse.user.email,
-      username: authResponse.user.username,
-    },
-    token: authResponse.token,
-    expiresAt: payload?.exp || 0,
-  };
-}
-
-/**
- * Load session from stored token
- */
-function loadSessionFromToken(): Session | null {
-  const token = getAuthToken();
-  if (!token || !isTokenValid(token)) {
-    clearAuthToken();
-    return null;
-  }
-
-  const payload = decodeToken(token);
-  if (!payload) return null;
-
-  return {
-    user: {
-      id: payload.sub,  // Use "sub" claim (standard JWT subject)
-      email: payload.email,
-      username: payload.username || payload.email.split('@')[0],
-    },
-    token,
-    expiresAt: payload.exp,
-  };
-}
-
-/**
  * Main authentication hook
  */
 export function useAuth(): UseAuthReturn {
@@ -200,9 +113,45 @@ export function useAuth(): UseAuthReturn {
 
   // Load session on mount
   useEffect(() => {
-    const loadedSession = loadSessionFromToken();
-    setSession(loadedSession);
-    setStatus(loadedSession ? 'authenticated' : 'unauthenticated');
+    // Check for token in URL parameters (from Google OAuth callback)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+
+    if (urlToken) {
+      // If token is in URL, store it and remove from URL
+      setAuthToken(urlToken);
+      // Clean URL without token parameter
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+
+      // Redirect to original destination or default to tasks
+      const redirectUrl = localStorage.getItem('authRedirectUrl') || '/tasks';
+      localStorage.removeItem('authRedirectUrl'); // Clean up
+      window.location.href = redirectUrl;
+      return; // Exit early to avoid setting session here since redirect will happen
+    }
+
+    const token = urlToken || getAuthToken();
+    if (token && isTokenValid(token)) {
+      const payload = decodeToken(token);
+      if (payload) {
+        setSession({
+          user: {
+            id: payload.sub,
+            email: payload.email,
+            username: payload.username || payload.email.split('@')[0],
+          },
+          token,
+          expiresAt: payload.exp,
+        });
+        setStatus('authenticated');
+      } else {
+        clearAuthToken();
+        setStatus('unauthenticated');
+      }
+    } else {
+      setStatus('unauthenticated');
+    }
     setIsLoading(false);
   }, []);
 
@@ -216,9 +165,25 @@ export function useAuth(): UseAuthReturn {
       setAuthToken(authResponse.token);
 
       // Update session
-      const newSession = authResponseToSession(authResponse);
-      setSession(newSession);
-      setStatus('authenticated');
+      const payload = decodeToken(authResponse.token);
+      if (payload) {
+        const newSession: Session = {
+          user: {
+            id: payload.sub,
+            email: payload.email,
+            username: payload.username || email.split('@')[0],
+          },
+          token: authResponse.token,
+          expiresAt: payload.exp,
+        };
+        setSession(newSession);
+        setStatus('authenticated');
+
+        // Redirect to original destination or default to tasks
+        const redirectUrl = localStorage.getItem('authRedirectUrl') || '/tasks';
+        localStorage.removeItem('authRedirectUrl'); // Clean up
+        window.location.href = redirectUrl;
+      }
     } catch (error) {
       console.error('Sign in error:', error);
       throw error;
@@ -235,9 +200,25 @@ export function useAuth(): UseAuthReturn {
       setAuthToken(authResponse.token);
 
       // Update session
-      const newSession = authResponseToSession(authResponse);
-      setSession(newSession);
-      setStatus('authenticated');
+      const payload = decodeToken(authResponse.token);
+      if (payload) {
+        const newSession: Session = {
+          user: {
+            id: payload.sub,
+            email: payload.email,
+            username: payload.username || username,
+          },
+          token: authResponse.token,
+          expiresAt: payload.exp,
+        };
+        setSession(newSession);
+        setStatus('authenticated');
+
+        // Redirect to original destination or default to tasks
+        const redirectUrl = localStorage.getItem('authRedirectUrl') || '/tasks';
+        localStorage.removeItem('authRedirectUrl'); // Clean up
+        window.location.href = redirectUrl;
+      }
     } catch (error) {
       console.error('Sign up error:', error);
       throw error;
@@ -247,14 +228,6 @@ export function useAuth(): UseAuthReturn {
   // Sign out function
   const signOut = async (): Promise<void> => {
     try {
-      // Call backend logout (optional, since JWT is stateless)
-      try {
-        await authApi.logout();
-      } catch (error) {
-        // Ignore errors from logout endpoint
-        console.warn('Logout endpoint error (ignored):', error);
-      }
-
       // Clear token and session
       clearAuthToken();
       setSession(null);
@@ -273,53 +246,4 @@ export function useAuth(): UseAuthReturn {
     signUp,
     signOut,
   };
-}
-
-/**
- * Hook for backward compatibility (alias for useAuth)
- */
-export const useSession = useAuth;
-
-/**
- * Check if token is about to expire (within 5 minutes)
- */
-export function isTokenExpiringSoon(): boolean {
-  const token = getAuthToken();
-  if (!token) return false;
-
-  const payload = decodeToken(token);
-  if (!payload) return false;
-
-  const currentTime = Math.floor(Date.now() / 1000);
-  const fiveMinutes = 5 * 60;
-
-  return payload.exp - currentTime < fiveMinutes;
-}
-
-/**
- * Get token expiration time
- */
-export function getTokenExpiration(): number | null {
-  const token = getAuthToken();
-  if (!token) return null;
-
-  const payload = decodeToken(token);
-  return payload?.exp || null;
-}
-
-/**
- * Redirect to auth page if not authenticated
- */
-export function requireAuth(redirectUrl?: string): void {
-  if (!isAuthenticated() && typeof window !== 'undefined') {
-    const url = redirectUrl || '/auth';
-    window.location.href = url;
-  }
-}
-
-/**
- * Verify token validity
- */
-export function verifyToken(token: string): boolean {
-  return isTokenValid(token);
 }

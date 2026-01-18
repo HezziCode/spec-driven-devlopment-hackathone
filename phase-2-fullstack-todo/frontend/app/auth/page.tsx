@@ -1,389 +1,333 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { getUserFriendlyMessage } from '@/lib/errors';
-import GoogleOAuthButton from '@/components/GoogleOAuthButton';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
-function AuthPageContent() {
+export default function AuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { session, status, signIn, signUp } = useAuth();
-
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const { signUp, signIn, session, signOut } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
-    confirmPassword: '',
+    confirmPassword: ''
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
+  const [showLinkingConfirmation, setShowLinkingConfirmation] = useState(false);
+  const [linkingEmail, setLinkingEmail] = useState('');
+  const [linkingToken, setLinkingToken] = useState('');
 
-  // Redirect if already authenticated
+  // Check if Google OAuth is enabled based on environment variables
   useEffect(() => {
-    if (status === 'authenticated' && session) {
-      router.push('/tasks');
-    }
-  }, [status, session, router]);
+    const isEnabled =
+      typeof process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID !== 'undefined' &&
+      process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID !== '';
 
-  // Show error message from URL params
-  useEffect(() => {
-    const error = searchParams.get('error');
-    if (error === 'session_expired') {
-      setErrors({ general: 'Your session has expired. Please sign in again.' });
-    } else if (error === 'auth_required') {
-      setErrors({ general: 'Please sign in to access this page.' });
+    setGoogleOAuthEnabled(isEnabled);
+
+    // Check for linking required parameters from Google OAuth callback
+    const linkingRequired = searchParams.get('linking_required');
+    const emailParam = searchParams.get('email');
+    const tokenParam = searchParams.get('linking_token');
+
+    if (linkingRequired === 'true' && emailParam && tokenParam) {
+      setLinkingEmail(emailParam);
+      setLinkingToken(tokenParam);
+      setShowLinkingConfirmation(true);
+      setError(`An account with email ${emailParam} already exists. Do you want to link your Google account to this existing account?`);
     }
   }, [searchParams]);
 
-  // Validate form inputs
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    // Email validation
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-
-    // Password validation
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    }
-
-    // Signup-specific validations
-    if (mode === 'signup') {
-      if (!formData.username) {
-        newErrors.username = 'Username is required';
-      } else if (formData.username.length < 3) {
-        newErrors.username = 'Username must be at least 3 characters';
-      }
-
-      if (!formData.confirmPassword) {
-        newErrors.confirmPassword = 'Please confirm your password';
-      } else if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Passwords do not match';
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-    setSuccessMessage('');
-
-    if (!validateForm()) return;
-
-    setIsSubmitting(true);
-
-    try {
-      if (mode === 'signin') {
-        await signIn(formData.email, formData.password);
-        setSuccessMessage('Sign in successful! Redirecting...');
-        setTimeout(() => router.push('/tasks'), 1000);
-      } else {
-        await signUp(formData.username, formData.email, formData.password);
-        setSuccessMessage('Account created successfully! Redirecting...');
-        setTimeout(() => router.push('/tasks'), 1000);
-      }
-    } catch (error: any) {
-      console.log('Caught error:', error); // Debug log
-
-      // Handle different error types
-      let errorMessage: string;
-
-      if (typeof error === 'string') {
-        errorMessage = error;
-      } else if (error.message && typeof error.message === 'string') {
-        // It's an APIError object, use getUserFriendlyMessage
-        errorMessage = getUserFriendlyMessage(error);
-      } else if (error.error && typeof error.error === 'string') {
-        // Direct error object
-        errorMessage = error.error;
-      } else {
-        // Fallback for unknown error types
-        errorMessage = "An unexpected error occurred. Please try again.";
-      }
-
-      setErrors({ general: errorMessage });
-
-      // If signin failed with "account not found", suggest switching to signup
-      if (mode === 'signin' && errorMessage.toLowerCase().includes('account not found')) {
-        // Optionally auto-switch to signup mode after 3 seconds
-        setTimeout(() => {
-          if (errors.general?.includes('Account not found')) {
-            // User can manually toggle if they want
-          }
-        }, 3000);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error for this field
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+    if (error) setError('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    if (isSignUp) {
+      // Validation for signup
+      if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match');
+        setLoading(false);
+        return;
+      }
+
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        await signUp(formData.username, formData.email, formData.password);
+        router.push('/tasks');
+      } catch (err: any) {
+        setError(err.message || 'Signup failed');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Validation for signin
+      if (formData.email && formData.password) {
+        try {
+          await signIn(formData.email, formData.password);
+          router.push('/tasks');
+        } catch (err: any) {
+          setError(err.message || 'Login failed');
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setError('Please enter both email and password');
+        setLoading(false);
+      }
     }
   };
 
-  // Toggle between signin and signup
-  const toggleMode = () => {
-    setMode(prev => prev === 'signin' ? 'signup' : 'signin');
-    setFormData({ username: '', email: '', password: '', confirmPassword: '' });
-    setErrors({});
-    setSuccessMessage('');
+  // Handle Google OAuth callback
+  const handleGoogleOAuth = () => {
+    // Redirect to backend Google OAuth endpoint
+    // Ensure we're using the correct API URL without /api suffix since backend serves auth at /auth
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    // Remove any trailing /api from the base URL to ensure proper auth endpoint
+    const cleanBaseUrl = baseUrl.endsWith('/api') ? baseUrl.slice(0, -4) : baseUrl;
+    window.location.href = `${cleanBaseUrl}/auth/google`;
   };
 
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.push('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  // Handle Google account linking confirmation
+  const handleLinkConfirmation = async (confirm: boolean) => {
+    try {
+      // Construct API URL properly
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const cleanBaseUrl = baseUrl.endsWith('/api') ? baseUrl.slice(0, -4) : baseUrl;
+      const response = await fetch(`${cleanBaseUrl}/auth/google/link-confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          linking_token: linkingToken,
+          confirm: confirm
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Store the token and redirect to original destination or default to tasks
+        localStorage.setItem('auth-token', result.token);
+
+        // Check for redirect URL from query params or fallback to stored redirect URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectParam = urlParams.get('redirect');
+        const redirectUrl = redirectParam ? decodeURIComponent(redirectParam) : localStorage.getItem('authRedirectUrl') || '/tasks';
+        localStorage.removeItem('authRedirectUrl'); // Clean up
+
+        router.push(redirectUrl);
+      } else {
+        setError(result.error || 'Failed to link accounts');
+      }
+    } catch (err) {
+      console.error('Link confirmation error:', err);
+      setError('Failed to link accounts');
+    } finally {
+      setShowLinkingConfirmation(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Navbar */}
+    <div className="min-h-screen flex flex-col bg-slate-900">
       <Navbar />
 
-      {/* Auth Form Container */}
-      <div className="flex-1 flex items-center justify-center px-4 py-8">
-        <div className="max-w-md w-full">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            TaskWave
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {mode === 'signin' ? 'Sign in to your account' : 'Create your account'}
-          </p>
-        </div>
-
-        {/* Auth Card */}
-        <div className="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-8">
-          {/* Success Message */}
-          {successMessage && (
-            <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-              <p className="text-green-800 dark:text-green-200 text-sm font-medium">
-                {successMessage}
-              </p>
-            </div>
-          )}
-
-          {/* General Error */}
-          {errors.general && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-red-800 dark:text-red-200 text-sm font-medium">
-                {errors.general}
-              </p>
-              {/* Show helpful action for "account not found" error */}
-              {mode === 'signin' && errors.general.toLowerCase().includes('account not found') && (
-                <button
-                  type="button"
-                  onClick={toggleMode}
-                  className="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
-                >
-                  Create an Account Instead
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Username (signup only) */}
-            {mode === 'signup' && (
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Username
-                </label>
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  value={formData.username}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 rounded-lg border ${
-                    errors.username
-                      ? 'border-red-300 dark:border-red-700'
-                      : 'border-gray-300 dark:border-gray-600'
-                  } bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition`}
-                  placeholder="Enter your username"
-                />
-                {errors.username && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.username}</p>
-                )}
-              </div>
-            )}
-
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email Address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                className={`w-full px-4 py-3 rounded-lg border ${
-                  errors.email
-                    ? 'border-red-300 dark:border-red-700'
-                    : 'border-gray-300 dark:border-gray-600'
-                } bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition`}
-                placeholder="you@example.com"
-              />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email}</p>
-              )}
-            </div>
-
-            {/* Password */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                className={`w-full px-4 py-3 rounded-lg border ${
-                  errors.password
-                    ? 'border-red-300 dark:border-red-700'
-                    : 'border-gray-300 dark:border-gray-600'
-                } bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition`}
-                placeholder="Enter your password"
-              />
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password}</p>
-              )}
-            </div>
-
-            {/* Confirm Password (signup only) */}
-            {mode === 'signup' && (
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Confirm Password
-                </label>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 rounded-lg border ${
-                    errors.confirmPassword
-                      ? 'border-red-300 dark:border-red-700'
-                      : 'border-gray-300 dark:border-gray-600'
-                  } bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition`}
-                  placeholder="Confirm your password"
-                />
-                {errors.confirmPassword && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.confirmPassword}</p>
-                )}
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              {isSubmitting ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {mode === 'signin' ? 'Signing in...' : 'Creating account...'}
-                </span>
-              ) : (
-                mode === 'signin' ? 'Sign In' : 'Sign Up'
-              )}
-            </button>
-          </form>
-
-          {/* Divider */}
-          <div className="mt-6 mb-6 flex items-center">
-            <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
-            <span className="mx-4 text-sm text-gray-500 dark:text-gray-400">or</span>
-            <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
-          </div>
-
-          {/* Google OAuth Button */}
-          <div className="mb-6">
-            <GoogleOAuthButton
-              mode={mode}
-              onSuccess={() => {
-                setSuccessMessage('Google authentication successful! Redirecting...');
-              }}
-              onError={(error) => {
-                setErrors({ general: error });
-              }}
-            />
-          </div>
-
-          {/* Toggle Mode */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {mode === 'signin' ? "Don't have an account?" : 'Already have an account?'}
-              {' '}
-              <button
-                type="button"
-                onClick={toggleMode}
-                className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition"
-              >
-                {mode === 'signin' ? 'Sign Up' : 'Sign In'}
-              </button>
+      <main className="flex-grow flex items-center justify-center py-12">
+        <div className="w-full max-w-md p-8 space-y-8 bg-slate-800/50 backdrop-blur-sm rounded-xl shadow-2xl border border-slate-700/50">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-white">
+              {isSignUp ? 'Create Account' : 'Welcome Back'}
+            </h2>
+            <p className="mt-2 text-slate-300">
+              {isSignUp ? 'Sign up to get started' : 'Sign in to your account'}
             </p>
           </div>
-        </div>
 
-        </div>
-      </div>
+          {error && !showLinkingConfirmation && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-300">
+              {error}
+            </div>
+          )}
 
-      {/* Footer */}
+          {showLinkingConfirmation ? (
+            // Show account linking confirmation
+            <div className="space-y-6">
+              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-4 text-yellow-300">
+                {error}
+              </div>
+
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => handleLinkConfirmation(true)}
+                  className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg text-white font-medium transition-colors duration-200"
+                >
+                  Yes, Link Accounts
+                </button>
+                <button
+                  onClick={() => handleLinkConfirmation(false)}
+                  className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {isSignUp && (
+                <div>
+                  <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-1">
+                    Username
+                  </label>
+                  <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    required={isSignUp}
+                    value={formData.username}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-slate-700 text-white placeholder-slate-400"
+                    placeholder="Enter username"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-slate-700 text-white placeholder-slate-400"
+                  placeholder="Enter email"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-slate-700 text-white placeholder-slate-400"
+                  placeholder="Enter password"
+                />
+              </div>
+
+              {isSignUp && (
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-1">
+                    Confirm Password
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    required={isSignUp}
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-slate-700 text-white placeholder-slate-400"
+                    placeholder="Confirm password"
+                  />
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 transition-all duration-200"
+              >
+                {loading ? (isSignUp ? 'Creating Account...' : 'Signing In...') : (isSignUp ? 'Sign Up' : 'Sign In')}
+              </button>
+            </form>
+          )}
+
+          {googleOAuthEnabled && !showLinkingConfirmation && (
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-600"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-slate-800 text-slate-400">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <button
+                  onClick={handleGoogleOAuth}
+                  className="w-full flex items-center justify-center px-4 py-2 border border-slate-600 rounded-md shadow-sm text-sm font-medium text-slate-300 bg-slate-700 hover:bg-slate-600 transition-colors duration-200"
+                >
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.56 12.25C22.56 11.47 22.49 10.72 22.36 10H12V14.26H17.92C17.66 15.63 16.88 16.79 15.71 17.57V20.34H19.28C21.36 18.42 22.56 15.6 22.56 12.25Z" fill="#4285F4"/>
+                    <path d="M12 23C14.97 23 17.46 22.02 19.28 20.34L15.71 17.57C14.73 18.23 13.48 18.64 12 18.64C9.14 18.64 6.71 16.69 5.84 14.09H2.18V16.96C4 20.53 7.7 23 12 23Z" fill="#34A853"/>
+                    <path d="M5.84 14.09C5.62 13.43 5.49 12.73 5.49 12C5.49 11.27 5.62 10.57 5.84 9.91V7.04H2.18C1.43 8.55 1 10.22 1 12C1 13.78 1.43 15.45 2.18 16.96L5.84 14.09Z" fill="#FBBC05"/>
+                    <path d="M12 5.36C13.62 5.36 15.06 5.93 16.21 7.04L19.36 3.89C17.45 2.09 14.97 1 12 1C7.7 1 4 3.47 2.18 7.04L5.84 9.91C6.71 7.31 9.14 5.36 12 5.36Z" fill="#EA4335"/>
+                  </svg>
+                  {isSignUp ? 'Sign up with Google' : 'Sign in with Google'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!showLinkingConfirmation && (
+            <div className="text-center text-sm text-slate-400">
+              {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+              <button
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setError('');
+                }}
+                className="font-medium text-cyan-400 hover:text-cyan-300 transition-colors duration-200"
+              >
+                {isSignUp ? 'Sign In' : 'Sign Up'}
+              </button>
+            </div>
+          )}
+        </div>
+      </main>
+
       <Footer variant="minimal" />
     </div>
-  );
-}
-
-export default function AuthPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
-      </div>
-    }>
-      <AuthPageContent />
-    </Suspense>
   );
 }

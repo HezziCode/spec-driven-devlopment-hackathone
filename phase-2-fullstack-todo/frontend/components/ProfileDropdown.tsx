@@ -97,7 +97,7 @@ export default function ProfileDropdown({
       {/* Dropdown Menu */}
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700/50 rounded-lg shadow-xl overflow-hidden z-50 transition-all duration-150 ease-out origin-top-right"
+          className="absolute right-0 top-full mt-2 w-48 bg-slate-800 border border-slate-700/50 rounded-lg shadow-xl overflow-hidden z-50 transition-all duration-150 ease-out origin-top-right"
           role="menu"
           aria-label="User menu"
         >

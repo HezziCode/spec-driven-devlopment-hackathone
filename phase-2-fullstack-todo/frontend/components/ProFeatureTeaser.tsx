@@ -1,6 +1,6 @@
 'use client';
 
-// Pro feature teaser component with blurred content and upgrade button for TaskWave Dashboard
+// Pro feature teaser component with blurred content and upgrade button for TaskFlow Dashboard
 // Displays premium features with "Coming Soon" badge and upgrade modal trigger
 
 import React from 'react';

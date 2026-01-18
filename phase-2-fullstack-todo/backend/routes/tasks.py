@@ -160,9 +160,30 @@ async def update_user_task(
                 status_code=404,
                 detail="Task not found"
             )
-        # Convert TaskTag objects to tag name strings
-        task_dict = task.model_dump()
-        task_dict['tags'] = [tag.tag_name for tag in task.tags] if task.tags else []
+
+        # Refresh to ensure tags are loaded from database
+        session.refresh(task)
+
+        # Build response dict manually to avoid SQLAlchemy state issues
+        task_dict = {
+            'id': task.id,
+            'user_id': task.user_id,
+            'title': task.title,
+            'description': task.description,
+            'completed': task.completed,
+            'priority': task.priority,
+            'created_at': task.created_at,
+            'updated_at': task.updated_at,
+            'tags': []
+        }
+
+        # Safely convert TaskTag objects to strings
+        if task.tags:
+            task_dict['tags'] = [
+                tag.tag_name if hasattr(tag, 'tag_name') else str(tag)
+                for tag in task.tags
+            ]
+
         return TaskResponse(**task_dict)
     except HTTPException:
         raise
@@ -198,9 +219,30 @@ async def partial_update_user_task(
                 status_code=404,
                 detail="Task not found"
             )
-        # Convert TaskTag objects to tag name strings
-        task_dict = task.model_dump()
-        task_dict['tags'] = [tag.tag_name for tag in task.tags] if task.tags else []
+
+        # Refresh to ensure tags are loaded from database
+        session.refresh(task)
+
+        # Build response dict manually to avoid SQLAlchemy state issues
+        task_dict = {
+            'id': task.id,
+            'user_id': task.user_id,
+            'title': task.title,
+            'description': task.description,
+            'completed': task.completed,
+            'priority': task.priority,
+            'created_at': task.created_at,
+            'updated_at': task.updated_at,
+            'tags': []
+        }
+
+        # Safely convert TaskTag objects to strings
+        if task.tags:
+            task_dict['tags'] = [
+                tag.tag_name if hasattr(tag, 'tag_name') else str(tag)
+                for tag in task.tags
+            ]
+
         return TaskResponse(**task_dict)
     except HTTPException:
         raise

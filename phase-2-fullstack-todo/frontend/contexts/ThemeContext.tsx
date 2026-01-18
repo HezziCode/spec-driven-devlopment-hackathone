@@ -1,6 +1,6 @@
 'use client';
 
-// Theme Context for TaskWave Dashboard
+// Theme Context for TaskFlow Dashboard
 // Manages light/dark mode and provides theme-related utilities
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';

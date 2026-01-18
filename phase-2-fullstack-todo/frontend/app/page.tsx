@@ -110,7 +110,7 @@ export default function App() {
   // --- Main Render (Only Landing Page is available) ---
   return (
     <PageRouteTransitionProvider>
-      <div className="min-h-screen bg-slate-900/90 transition-colors duration-300 relative">
+      <div className="min-h-screen w-full max-w-full bg-slate-900/90 transition-colors duration-300 relative overflow-x-hidden">
         <GlobalStyles />
 
         {/* Neural Background - positioned just behind content but above base background */}

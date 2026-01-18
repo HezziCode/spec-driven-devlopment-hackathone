@@ -1,6 +1,6 @@
 'use client';
 
-// Wave-themed loading spinner component for TaskWave Dashboard
+// Wave-themed loading spinner component for TaskFlow Dashboard
 // Features wave animations with teal/cyan colors
 
 import React from 'react';

@@ -1,21 +1,27 @@
-# Backend CLAUDE.md: Guidelines for FastAPI Backend in Phase 2 Todo Web App
+# Backend CLAUDE.md: Guidelines for FastAPI Backend in Phase 2/3 Todo Web App
 
-This file provides specific guidelines for developing the backend of the Phase 2 Full-Stack Todo Web App using FastAPI, SQLModel, and Neon PostgreSQL.
+This file provides specific guidelines for developing the backend of the Phase 2/3 Full-Stack Todo Web App using FastAPI, SQLModel, Neon PostgreSQL, and MCP Server for AI agents.
 
 ## Technology Stack
 - **Framework**: FastAPI (Python 3.11+)
 - **ORM**: SQLModel (for database operations)
 - **Database**: Neon Serverless PostgreSQL
 - **Authentication**: Better Auth JWT verification
+- **MCP Framework**: FastMCP 2.x (for AI agent tools)
 - **Package Management**: UV for dependency management
 - **Server**: Uvicorn for running the application
 
 ## Project Structure
 ```
 /backend/
-├── main.py                 # FastAPI application entry point
+├── main.py                 # FastAPI application entry point (with MCP mount)
 ├── db.py                   # Database connection and session management
 ├── models.py               # SQLModel database models
+├── /mcp_server/            # MCP Server for AI agents (Phase 3)
+│   ├── __init__.py         # Package exports
+│   ├── server.py           # FastMCP server instance and lifespan
+│   ├── schemas.py          # Pydantic schemas for MCP tool I/O
+│   └── tools.py            # MCP tool implementations (6 tools)
 ├── /routes/                # API route handlers
 │   ├── __init__.py
 │   ├── auth.py             # Authentication endpoints
@@ -38,6 +44,7 @@ This file provides specific guidelines for developing the backend of the Phase 2
 │   ├── jwt_utils.py        # JWT token utilities
 │   └── security.py         # Security utilities
 ├── /tests/                 # Backend tests
+│   └── test_mcp_tools.py   # MCP tools tests
 ├── pyproject.toml          # Project dependencies and configuration
 └── .env                    # Environment variables (not committed)
 ```
@@ -195,3 +202,186 @@ This file provides specific guidelines for developing the backend of the Phase 2
 - Set up proper monitoring and alerting
 - Implement proper backup strategies for the database
 - Use proper SSL certificates for HTTPS
+
+## MCP Server (Phase 3)
+
+### Overview
+The MCP (Model Context Protocol) server exposes todo management functionality as tools for AI agents. It is mounted at the `/mcp` endpoint using FastMCP's SSE transport.
+
+### Available Tools
+| Tool | Description | Parameters |
+|------|-------------|------------|
+| `create_task` | Create a new task | user_id, title, description? |
+| `list_tasks` | List user's tasks | user_id, status? (all/pending/completed) |
+| `mark_complete` | Mark task as completed | user_id, task_id |
+| `update_task` | Update task details | user_id, task_id, title?, description? |
+| `delete_task` | Delete a task | user_id, task_id |
+| `search_tasks` | Search tasks by keyword | user_id, query |
+
+### Response Formats
+**Success Response (single task operations):**
+```json
+{
+  "task_id": "uuid",
+  "status": "created|updated|deleted|completed",
+  "title": "Task title"
+}
+```
+
+**Success Response (list/search operations):**
+```json
+{
+  "tasks": [{"id": "uuid", "title": "...", "completed": false, ...}],
+  "total": 5
+}
+```
+
+**Error Response:**
+```json
+{
+  "error": "Error message",
+  "code": "NOT_FOUND|VALIDATION_ERROR|DATABASE_ERROR",
+  "task_id": "uuid (if applicable)"
+}
+```
+
+### User Isolation
+All MCP tools enforce user isolation by:
+1. Requiring `user_id` parameter on all operations
+2. Filtering database queries by `user_id`
+3. Returning "not found" for resources belonging to other users
+
+### Integration with AI Agents
+The MCP server can be used with:
+- OpenAI Agents SDK: Connect via `http://localhost:8000/mcp`
+- FastMCP Client: Use `fastmcp.client.Client` for direct tool invocation
+- Any MCP-compatible AI framework
+
+### Testing MCP Tools
+```bash
+# Run unit tests (no database required)
+uv run pytest tests/test_mcp_tools.py -v -k "not integration"
+
+# Run integration tests (requires database)
+uv run pytest tests/test_mcp_tools.py -v -m integration
+```
+
+### Adding New Tools
+1. Define input schema in `mcp_server/schemas.py`
+2. Implement tool function in `mcp_server/tools.py` with `@mcp.tool()` decorator
+3. Add tests in `tests/test_mcp_tools.py`
+4. Update this documentation
+
+## OpenAI Agents SDK Integration (Phase 3)
+
+### Overview
+The OpenAI Agents SDK integration provides a TaskManagerAgent that enables natural language task management. The agent uses `@function_tool` decorators to expose task operations and calls the existing MCP server tools for all database operations.
+
+### Project Structure
+```
+/backend/
+├── /agents/                 # OpenAI Agents SDK integration
+│   ├── __init__.py         # Package exports
+│   ├── agent.py            # TaskManagerAgent definition with AGENT_INSTRUCTIONS
+│   ├── tools.py            # @function_tool implementations (7 tools)
+│   ├── context.py          # AgentContext dataclass for user isolation
+│   └── schemas.py          # Agent-specific Pydantic models
+├── /routes/
+│   └── chat.py             # POST /api/users/{user_id}/chat endpoint
+├── /services/
+│   └── chat_service.py     # Chat orchestration (process_message, etc.)
+├── /schemas/
+│   └── chat.py             # ChatRequest, ChatResponse, ToolCall schemas
+```
+
+### Available Agent Tools
+| Tool | Description | Parameters |
+|------|-------------|------------|
+| `create_task` | Create a new task from natural language | ctx, title, description? |
+| `list_tasks` | List user's tasks with optional status filter | ctx, status? |
+| `get_task` | Get a specific task by ID | ctx, task_id |
+| `mark_complete` | Mark task as completed | ctx, task_id |
+| `update_task` | Update task title/description | ctx, task_id, title?, description? |
+| `delete_task` | Delete a task | ctx, task_id |
+| `search_tasks` | Search tasks by keyword | ctx, query |
+
+### Agent Context
+```python
+from agents.context import AgentContext
+
+@dataclass
+class AgentContext:
+    """Context passed to all agent tool invocations."""
+    user_id: str                    # UUID of authenticated user
+    conversation_id: str = None     # Conversation ID for context
+    mcp_base_url: str = "http://localhost:8000"  # MCP server URL
+```
+
+### Chat Endpoint
+**POST** `/api/users/{user_id}/chat`
+
+**Request:**
+```json
+{
+  "conversation_id": "uuid (optional)",
+  "message": "I need to buy groceries this weekend"
+}
+```
+
+**Response:**
+```json
+{
+  "conversation_id": "uuid",
+  "response": "Done! I've added 'Buy groceries' to your tasks.",
+  "tool_calls": [
+    {
+      "tool_name": "create_task",
+      "arguments": {"title": "Buy groceries"},
+      "result": {"task_id": "uuid", "status": "created", "title": "Buy groceries"}
+    }
+  ]
+}
+```
+
+### Usage Example
+```python
+from agents import Runner
+from agents.agent import task_manager_agent
+from agents.context import AgentContext
+
+async def chat_with_agent(user_id: str, message: str):
+    context = AgentContext(
+        user_id=user_id,
+        conversation_id=None,  # Creates new conversation if not provided
+        mcp_base_url="http://localhost:8000"
+    )
+
+    result = await Runner.run(
+        task_manager_agent,
+        input=message,
+        context=context
+    )
+
+    return result.final_output
+```
+
+### User Isolation
+All agent tools enforce user isolation by:
+1. Extracting `user_id` from AgentContext
+2. Passing `user_id` to all MCP server calls
+3. MCP server filters queries by `user_id`
+
+### Testing Agent Tools
+```bash
+# Run agent tool tests
+uv run pytest tests/test_agent_tools.py -v
+
+# Run chat endpoint tests
+uv run pytest tests/test_chat_endpoint.py -v
+```
+
+### Configuration
+Required environment variables:
+- `OPENAI_API_KEY`: OpenAI API key for agent inference
+- `DATABASE_URL`: PostgreSQL connection (existing)
+- `BETTER_AUTH_SECRET`: JWT secret (existing)

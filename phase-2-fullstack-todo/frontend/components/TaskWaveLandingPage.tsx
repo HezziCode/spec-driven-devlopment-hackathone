@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Home, Zap, Layers, Users } from 'lucide-react';
 
-const TaskWaveLandingPage = () => {
+const TaskFlowLandingPage = () => {
   const [darkMode, setDarkMode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -38,7 +38,7 @@ const TaskWaveLandingPage = () => {
     {
       title: "Cross-Device Support",
       icon: Layers,
-      description: "Use TaskWave on mobile, tablet, or desktop with no issues."
+      description: "Use TaskFlow on mobile, tablet, or desktop with no issues."
     },
     {
       title: "Easy Authentication",
@@ -77,7 +77,7 @@ const TaskWaveLandingPage = () => {
         {/* Hero Content */}
         <div className="relative z-10 text-center max-w-4xl mx-auto">
           <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold mb-6">
-            Ride the <span className="bg-gradient-to-r from-teal-600 to-cyan-500 bg-clip-text text-transparent">TaskWave</span>
+            Ride the <span className="bg-gradient-to-r from-teal-600 to-cyan-500 bg-clip-text text-transparent">TaskFlow</span>
           </h1>
           <p className={`text-xl md:text-2xl mb-10 max-w-2xl mx-auto ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
             The minimalist, modern way to manage your tasks. Start working smarter...
@@ -141,4 +141,4 @@ const TaskWaveLandingPage = () => {
   );
 };
 
-export default TaskWaveLandingPage;
+export default TaskFlowLandingPage;
