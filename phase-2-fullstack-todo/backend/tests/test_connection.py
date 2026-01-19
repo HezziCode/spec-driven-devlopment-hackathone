@@ -4,9 +4,10 @@ Tests for database connection and session management.
 Verifies database connection configuration, validation, and session lifecycle.
 """
 
-import pytest
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 from sqlmodel import Session, text
 
 
@@ -16,11 +17,10 @@ def test_database_url_validation_missing():
     with patch.dict(os.environ, {}, clear=True):
         with pytest.raises(ValueError) as exc_info:
             # Force reimport to trigger validation
-            import importlib
             import sys
+
             if "db" in sys.modules:
                 del sys.modules["db"]
-            import db
 
         assert "DATABASE_URL environment variable is not set" in str(exc_info.value)
 
@@ -31,11 +31,10 @@ def test_database_url_validation_sqlite():
     with patch.dict(os.environ, {"DATABASE_URL": "sqlite:///test.db"}):
         with pytest.raises(ValueError) as exc_info:
             # Force reimport to trigger validation
-            import importlib
             import sys
+
             if "db" in sys.modules:
                 del sys.modules["db"]
-            import db
 
         assert "SQLite database detected" in str(exc_info.value)
 
@@ -90,8 +89,9 @@ def test_get_session_commits_on_success(engine, session):
 
 def test_get_session_rollback_on_exception(engine):
     """Test that get_session rolls back on exception."""
-    from db import get_session
     from sqlmodel import Session
+
+    from db import get_session
 
     # Create a mock session
     mock_session = MagicMock(spec=Session)
@@ -114,8 +114,9 @@ def test_get_session_rollback_on_exception(engine):
 
 def test_get_session_closes_session(engine):
     """Test that get_session always closes the session."""
-    from db import get_session
     from sqlmodel import Session
+
+    from db import get_session
 
     # Create a mock session
     mock_session = MagicMock(spec=Session)
@@ -139,9 +140,12 @@ def test_get_session_closes_session(engine):
 def test_engine_has_connection_pool():
     """Test that engine is configured with connection pooling."""
     # Set valid PostgreSQL URL for this test
-    with patch.dict(os.environ, {"DATABASE_URL": "postgresql://user:pass@localhost/test"}):
+    with patch.dict(
+        os.environ, {"DATABASE_URL": "postgresql://user:pass@localhost/test"}
+    ):
         # Force reimport
         import sys
+
         if "db" in sys.modules:
             del sys.modules["db"]
         import db
@@ -176,9 +180,10 @@ def test_session_context_manager(engine):
 
 def test_get_session_dependency_injection_pattern():
     """Test that get_session follows FastAPI dependency injection pattern."""
-    from db import get_session
-    from typing import get_type_hints
     import inspect
+    from typing import get_type_hints
+
+    from db import get_session
 
     # Verify function signature
     assert inspect.isgeneratorfunction(get_session)
@@ -206,9 +211,11 @@ def test_database_url_format_validation():
         with patch.dict(os.environ, {"DATABASE_URL": url}):
             try:
                 import sys
+
                 if "db" in sys.modules:
                     del sys.modules["db"]
                 import db
+
                 assert db.engine is not None
             except ValueError:
                 pytest.fail(f"Valid URL {url} raised ValueError")
@@ -218,6 +225,7 @@ def test_database_url_format_validation():
         with patch.dict(os.environ, {"DATABASE_URL": url}):
             with pytest.raises(ValueError):
                 import sys
+
                 if "db" in sys.modules:
                     del sys.modules["db"]
                 import db

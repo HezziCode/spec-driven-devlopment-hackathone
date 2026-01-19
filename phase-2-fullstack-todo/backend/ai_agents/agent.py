@@ -1,15 +1,16 @@
 """TaskManagerAgent definition using OpenAI Agents SDK."""
 
 from agents import Agent
+
 from .tools import (
     create_task,
-    list_tasks,
-    get_task,
-    mark_complete,
-    update_task,
     delete_task,
     delete_task_by_name,
+    get_task,
+    list_tasks,
+    mark_complete,
     search_tasks,
+    update_task,
 )
 
 AGENT_INSTRUCTIONS = """

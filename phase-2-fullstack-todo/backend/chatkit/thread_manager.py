@@ -7,7 +7,6 @@ from typing import Any
 
 from sqlmodel import Session, select
 
-from db import get_session
 from models import ChatMessage, ChatThread
 
 logger = logging.getLogger(__name__)
@@ -28,7 +27,9 @@ class ThreadManager:
         """
         self.session = session
 
-    def create_thread(self, user_id: str, title: str | None = None, first_message: str | None = None) -> ChatThread:
+    def create_thread(
+        self, user_id: str, title: str | None = None, first_message: str | None = None
+    ) -> ChatThread:
         """Create a new conversation thread.
 
         Args:
@@ -45,7 +46,12 @@ class ThreadManager:
             # Clean and truncate the first message for thread name
             final_title = first_message.strip()
             # Remove common prefixes/suffixes
-            final_title = re.sub(r'^(hi|hello|hey|help|can you|please)[,\s!?]*', '', final_title, flags=re.IGNORECASE)
+            final_title = re.sub(
+                r"^(hi|hello|hey|help|can you|please)[,\s!?]*",
+                "",
+                final_title,
+                flags=re.IGNORECASE,
+            )
             # Truncate to reasonable length
             if len(final_title) > 50:
                 final_title = final_title[:47] + "..."
@@ -61,7 +67,9 @@ class ThreadManager:
         self.session.add(thread)
         self.session.commit()
         self.session.refresh(thread)
-        logger.info(f"Created thread {thread.id} for user {user_id} with title: {thread.name}")
+        logger.info(
+            f"Created thread {thread.id} for user {user_id} with title: {thread.name}"
+        )
         return thread
 
     def get_thread(self, user_id: str, thread_id: str) -> ChatThread | None:
@@ -101,13 +109,15 @@ class ThreadManager:
             message_count = self.session.exec(
                 select(ChatMessage).where(ChatMessage.thread_id == thread.id)
             ).count()
-            result.append({
-                "id": str(thread.id),
-                "title": thread.name,
-                "message_count": message_count,
-                "created_at": thread.created_at.isoformat(),
-                "updated_at": thread.updated_at.isoformat(),
-            })
+            result.append(
+                {
+                    "id": str(thread.id),
+                    "title": thread.name,
+                    "message_count": message_count,
+                    "created_at": thread.created_at.isoformat(),
+                    "updated_at": thread.updated_at.isoformat(),
+                }
+            )
         return result
 
     def delete_thread(self, user_id: str, thread_id: str) -> bool:
@@ -189,9 +199,7 @@ class ThreadManager:
             .limit(limit)
         ).all()
 
-        return [
-            {"role": msg.role, "content": msg.content} for msg in messages
-        ]
+        return [{"role": msg.role, "content": msg.content} for msg in messages]
 
     def get_thread_with_messages(
         self, user_id: str, thread_id: str

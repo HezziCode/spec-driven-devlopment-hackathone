@@ -15,6 +15,7 @@ class AgentContext:
         conversation_id: Optional conversation ID for context
         mcp_base_url: Base URL for MCP server (internal, configurable via env)
     """
+
     user_id: str
     jwt_token: Optional[str] = None
     conversation_id: Optional[str] = None

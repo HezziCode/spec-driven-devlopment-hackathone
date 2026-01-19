@@ -1,13 +1,14 @@
 """Pydantic schemas for agent tool inputs and outputs."""
 
-from pydantic import BaseModel, Field
-from typing import Optional, List
-from datetime import datetime
 from enum import Enum
+from typing import List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class TaskPriority(str, Enum):
     """Task priority levels."""
+
     low = "low"
     medium = "medium"
     high = "high"
@@ -16,20 +17,20 @@ class TaskPriority(str, Enum):
 
 class ExtractedTaskDetails(BaseModel):
     """Task details extracted from natural language."""
+
     title: str = Field(..., description="Task title extracted from message")
     description: Optional[str] = Field(None, description="Task description if provided")
     priority: TaskPriority = Field(
-        default=TaskPriority.medium,
-        description="Inferred priority level"
+        default=TaskPriority.medium, description="Inferred priority level"
     )
     due_date: Optional[str] = Field(
-        None,
-        description="Due date if mentioned (ISO 8601 format)"
+        None, description="Due date if mentioned (ISO 8601 format)"
     )
 
 
 class TaskInfo(BaseModel):
     """Task information returned from tools."""
+
     id: str
     title: str
     description: Optional[str] = None
@@ -41,6 +42,7 @@ class TaskInfo(BaseModel):
 
 class TaskOperationResult(BaseModel):
     """Result of a task operation."""
+
     task_id: str
     status: str  # created, updated, deleted, completed
     title: str
@@ -48,5 +50,6 @@ class TaskOperationResult(BaseModel):
 
 class TaskListResult(BaseModel):
     """Result of listing tasks."""
+
     tasks: List[TaskInfo]
     total: int

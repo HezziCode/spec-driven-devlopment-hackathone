@@ -4,16 +4,17 @@ These endpoints provide a simple HTTP interface for AI agents to call
 task management operations, bypassing the MCP server complexity.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session
-from pydantic import BaseModel
+import logging
 from typing import Optional
 from uuid import UUID
-import logging
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlmodel import Session
 
 from db import get_session
-from services import task_service
 from schemas.task import TaskCreate, TaskUpdate
+from services import task_service
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ router = APIRouter(prefix="/api/ai", tags=["AI Tools"])
 
 class CreateTaskRequest(BaseModel):
     """Request model for creating a task via AI agent."""
+
     user_id: str
     title: str
     description: Optional[str] = ""
@@ -33,6 +35,7 @@ class CreateTaskRequest(BaseModel):
 
 class UpdateTaskRequest(BaseModel):
     """Request model for updating a task via AI agent."""
+
     user_id: str
     title: Optional[str] = None
     description: Optional[str] = None
@@ -40,17 +43,20 @@ class UpdateTaskRequest(BaseModel):
 
 class DeleteTaskRequest(BaseModel):
     """Request model for deleting a task via AI agent."""
+
     user_id: str
 
 
 class DeleteTaskByNameRequest(BaseModel):
     """Request model for deleting a task by name via AI agent."""
+
     user_id: str
     task_name: str
 
 
 class TaskResponse(BaseModel):
     """Response model for task operations."""
+
     task_id: str
     status: str
     title: str
@@ -58,8 +64,7 @@ class TaskResponse(BaseModel):
 
 @router.post("/tasks", response_model=TaskResponse)
 async def create_task_for_ai(
-    request: CreateTaskRequest,
-    session: Session = Depends(get_session)
+    request: CreateTaskRequest, session: Session = Depends(get_session)
 ) -> TaskResponse:
     """
     Create a new task via AI agent.
@@ -68,7 +73,9 @@ async def create_task_for_ai(
     It bypasses authentication since the AI agent provides the user_id directly.
     """
     try:
-        logger.info(f"AI agent creating task '{request.title}' for user {request.user_id}")
+        logger.info(
+            f"AI agent creating task '{request.title}' for user {request.user_id}"
+        )
 
         # Convert user_id string to UUID
         user_uuid = UUID(request.user_id)
@@ -78,7 +85,7 @@ async def create_task_for_ai(
             title=request.title,
             description=request.description or "",
             priority=request.priority or "medium",
-            tags=request.tags or []
+            tags=request.tags or [],
         )
 
         # Create task using task service function
@@ -87,16 +94,12 @@ async def create_task_for_ai(
             task_data=task_data,
             user_id=user_uuid,
             source=request.source,
-            thread_id=request.thread_id
+            thread_id=request.thread_id,
         )
 
         logger.info(f"AI agent created task {task.id} for user {request.user_id}")
 
-        return TaskResponse(
-            task_id=str(task.id),
-            status="created",
-            title=task.title
-        )
+        return TaskResponse(task_id=str(task.id), status="created", title=task.title)
     except ValueError as e:
         logger.error(f"Invalid user_id format: {e}")
         raise HTTPException(status_code=400, detail=f"Invalid user_id: {str(e)}")
@@ -107,9 +110,7 @@ async def create_task_for_ai(
 
 @router.put("/tasks/{task_id}", response_model=TaskResponse)
 async def update_task_for_ai(
-    task_id: str,
-    request: UpdateTaskRequest,
-    session: Session = Depends(get_session)
+    task_id: str, request: UpdateTaskRequest, session: Session = Depends(get_session)
 ) -> TaskResponse:
     """
     Update an existing task via AI agent.
@@ -130,15 +131,12 @@ async def update_task_for_ai(
             description=request.description,
             completed=None,
             priority=None,
-            tags=None
+            tags=None,
         )
 
         # Update task using task service function
         task = task_service.update_task(
-            session=session,
-            task_id=task_uuid,
-            task_data=update_data,
-            user_id=user_uuid
+            session=session, task_id=task_uuid, task_data=update_data, user_id=user_uuid
         )
 
         if not task:
@@ -146,14 +144,12 @@ async def update_task_for_ai(
 
         logger.info(f"AI agent updated task {task.id} for user {request.user_id}")
 
-        return TaskResponse(
-            task_id=str(task.id),
-            status="updated",
-            title=task.title
-        )
+        return TaskResponse(task_id=str(task.id), status="updated", title=task.title)
     except ValueError as e:
         logger.error(f"Invalid user_id or task_id format: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid user_id or task_id: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid user_id or task_id: {str(e)}"
+        )
     except HTTPException:
         raise  # Re-raise HTTP exceptions
     except Exception as e:
@@ -163,9 +159,7 @@ async def update_task_for_ai(
 
 @router.delete("/tasks/{task_id}", response_model=TaskResponse)
 async def delete_task_for_ai(
-    task_id: str,
-    request: DeleteTaskRequest,
-    session: Session = Depends(get_session)
+    task_id: str, request: DeleteTaskRequest, session: Session = Depends(get_session)
 ) -> TaskResponse:
     """
     Delete a task via AI agent.
@@ -182,9 +176,7 @@ async def delete_task_for_ai(
 
         # Get task first to retrieve title before deletion
         task = task_service.get_task_by_id(
-            session=session,
-            task_id=task_uuid,
-            user_id=user_uuid
+            session=session, task_id=task_uuid, user_id=user_uuid
         )
 
         if not task:
@@ -195,9 +187,7 @@ async def delete_task_for_ai(
 
         # Delete task using task service function
         deleted = task_service.delete_task(
-            session=session,
-            task_id=task_uuid,
-            user_id=user_uuid
+            session=session, task_id=task_uuid, user_id=user_uuid
         )
 
         if not deleted:
@@ -205,14 +195,12 @@ async def delete_task_for_ai(
 
         logger.info(f"AI agent deleted task {task_uuid} for user {request.user_id}")
 
-        return TaskResponse(
-            task_id=str(task_uuid),
-            status="deleted",
-            title=task_title
-        )
+        return TaskResponse(task_id=str(task_uuid), status="deleted", title=task_title)
     except ValueError as e:
         logger.error(f"Invalid user_id or task_id format: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid user_id or task_id: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid user_id or task_id: {str(e)}"
+        )
     except HTTPException:
         raise  # Re-raise HTTP exceptions
     except Exception as e:
@@ -222,8 +210,7 @@ async def delete_task_for_ai(
 
 @router.post("/tasks/delete-by-name", response_model=TaskResponse)
 async def delete_task_by_name_for_ai(
-    request: DeleteTaskByNameRequest,
-    session: Session = Depends(get_session)
+    request: DeleteTaskByNameRequest, session: Session = Depends(get_session)
 ) -> TaskResponse:
     """
     Delete a task by name via AI agent.
@@ -232,16 +219,15 @@ async def delete_task_by_name_for_ai(
     It bypasses authentication since the AI agent provides the user_id directly.
     """
     try:
-        logger.info(f"AI agent deleting task by name '{request.task_name}' for user {request.user_id}")
+        logger.info(
+            f"AI agent deleting task by name '{request.task_name}' for user {request.user_id}"
+        )
 
         # Convert user_id string to UUID
         user_uuid = UUID(request.user_id)
 
         # Get all tasks and find by name (case-insensitive)
-        tasks, _ = task_service.get_user_tasks(
-            session=session,
-            user_id=user_uuid
-        )
+        tasks, _ = task_service.get_user_tasks(session=session, user_id=user_uuid)
 
         # Find task by name (case-insensitive, trimmed)
         task_name_lower = request.task_name.lower().strip()
@@ -252,7 +238,9 @@ async def delete_task_by_name_for_ai(
                 break
 
         if not matching_task:
-            raise HTTPException(status_code=404, detail=f"Task '{request.task_name}' not found")
+            raise HTTPException(
+                status_code=404, detail=f"Task '{request.task_name}' not found"
+            )
 
         # Store title before deletion
         task_title = matching_task.title
@@ -260,21 +248,17 @@ async def delete_task_by_name_for_ai(
 
         # Delete task using task service function
         deleted = task_service.delete_task(
-            session=session,
-            task_id=task_id,
-            user_id=user_uuid
+            session=session, task_id=task_id, user_id=user_uuid
         )
 
         if not deleted:
             raise HTTPException(status_code=404, detail="Task not found")
 
-        logger.info(f"AI agent deleted task '{task_title}' (ID: {task_id}) for user {request.user_id}")
-
-        return TaskResponse(
-            task_id=str(task_id),
-            status="deleted",
-            title=task_title
+        logger.info(
+            f"AI agent deleted task '{task_title}' (ID: {task_id}) for user {request.user_id}"
         )
+
+        return TaskResponse(task_id=str(task_id), status="deleted", title=task_title)
     except ValueError as e:
         logger.error(f"Invalid user_id format: {e}")
         raise HTTPException(status_code=400, detail=f"Invalid user_id: {str(e)}")
@@ -287,14 +271,14 @@ async def delete_task_by_name_for_ai(
 
 class ListTasksRequest(BaseModel):
     """Request model for listing tasks via AI agent."""
+
     user_id: str
     status: Optional[str] = "all"  # all, pending, completed
 
 
 @router.post("/tasks/list", response_model=dict)
 async def list_tasks_for_ai(
-    request: ListTasksRequest,
-    session: Session = Depends(get_session)
+    request: ListTasksRequest, session: Session = Depends(get_session)
 ) -> dict:
     """
     List tasks for a user via AI agent.
@@ -303,7 +287,9 @@ async def list_tasks_for_ai(
     It bypasses authentication since the AI agent provides the user_id directly.
     """
     try:
-        logger.info(f"AI agent listing tasks for user {request.user_id} with status={request.status}")
+        logger.info(
+            f"AI agent listing tasks for user {request.user_id} with status={request.status}"
+        )
 
         # Convert user_id string to UUID
         user_uuid = UUID(request.user_id)
@@ -317,9 +303,7 @@ async def list_tasks_for_ai(
 
         # Get tasks using task service function
         tasks, total = task_service.get_user_tasks(
-            session=session,
-            user_id=user_uuid,
-            completed=completed_filter
+            session=session, user_id=user_uuid, completed=completed_filter
         )
 
         logger.info(f"AI agent listed {len(tasks)} tasks for user {request.user_id}")
@@ -333,11 +317,11 @@ async def list_tasks_for_ai(
                     "completed": task.completed,
                     "priority": task.priority,
                     "created_at": task.created_at.isoformat(),
-                    "updated_at": task.updated_at.isoformat()
+                    "updated_at": task.updated_at.isoformat(),
                 }
                 for task in tasks
             ],
-            "total": total
+            "total": total,
         }
     except ValueError as e:
         logger.error(f"Invalid user_id format: {e}")
@@ -349,14 +333,13 @@ async def list_tasks_for_ai(
 
 class MarkCompleteRequest(BaseModel):
     """Request model for marking a task complete via AI agent."""
+
     user_id: str
 
 
 @router.post("/tasks/{task_id}/complete", response_model=TaskResponse)
 async def mark_task_complete_for_ai(
-    task_id: str,
-    request: MarkCompleteRequest,
-    session: Session = Depends(get_session)
+    task_id: str, request: MarkCompleteRequest, session: Session = Depends(get_session)
 ) -> TaskResponse:
     """
     Mark a task as completed via AI agent.
@@ -365,7 +348,9 @@ async def mark_task_complete_for_ai(
     It bypasses authentication since the AI agent provides the user_id directly.
     """
     try:
-        logger.info(f"AI agent marking task {task_id} complete for user {request.user_id}")
+        logger.info(
+            f"AI agent marking task {task_id} complete for user {request.user_id}"
+        )
 
         # Convert user_id and task_id strings to UUIDs
         user_uuid = UUID(request.user_id)
@@ -374,42 +359,40 @@ async def mark_task_complete_for_ai(
         # Update task using task service function
         update_data = TaskUpdate(completed=True)
         task = task_service.update_task(
-            session=session,
-            task_id=task_uuid,
-            task_data=update_data,
-            user_id=user_uuid
+            session=session, task_id=task_uuid, task_data=update_data, user_id=user_uuid
         )
 
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
 
-        logger.info(f"AI agent marked task {task.id} complete for user {request.user_id}")
-
-        return TaskResponse(
-            task_id=str(task.id),
-            status="completed",
-            title=task.title
+        logger.info(
+            f"AI agent marked task {task.id} complete for user {request.user_id}"
         )
+
+        return TaskResponse(task_id=str(task.id), status="completed", title=task.title)
     except ValueError as e:
         logger.error(f"Invalid user_id or task_id format: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid user_id or task_id: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid user_id or task_id: {str(e)}"
+        )
     except HTTPException:
         raise  # Re-raise HTTP exceptions
     except Exception as e:
         logger.error(f"Error marking task complete via AI agent: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to mark task complete: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to mark task complete: {str(e)}"
+        )
 
 
 class GetTaskRequest(BaseModel):
     """Request model for getting a specific task via AI agent."""
+
     user_id: str
 
 
 @router.post("/tasks/{task_id}/get", response_model=dict)
 async def get_task_for_ai(
-    task_id: str,
-    request: GetTaskRequest,
-    session: Session = Depends(get_session)
+    task_id: str, request: GetTaskRequest, session: Session = Depends(get_session)
 ) -> dict:
     """
     Get a specific task via AI agent.
@@ -426,9 +409,7 @@ async def get_task_for_ai(
 
         # Get task using task service function
         task = task_service.get_task_by_id(
-            session=session,
-            task_id=task_uuid,
-            user_id=user_uuid
+            session=session, task_id=task_uuid, user_id=user_uuid
         )
 
         if not task:
@@ -443,11 +424,13 @@ async def get_task_for_ai(
             "completed": task.completed,
             "priority": task.priority,
             "created_at": task.created_at.isoformat(),
-            "updated_at": task.updated_at.isoformat()
+            "updated_at": task.updated_at.isoformat(),
         }
     except ValueError as e:
         logger.error(f"Invalid user_id or task_id format: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid user_id or task_id: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid user_id or task_id: {str(e)}"
+        )
     except HTTPException:
         raise  # Re-raise HTTP exceptions
     except Exception as e:
@@ -457,14 +440,14 @@ async def get_task_for_ai(
 
 class SearchTasksRequest(BaseModel):
     """Request model for searching tasks via AI agent."""
+
     user_id: str
     query: str
 
 
 @router.post("/tasks/search", response_model=dict)
 async def search_tasks_for_ai(
-    request: SearchTasksRequest,
-    session: Session = Depends(get_session)
+    request: SearchTasksRequest, session: Session = Depends(get_session)
 ) -> dict:
     """
     Search tasks via AI agent.
@@ -473,19 +456,21 @@ async def search_tasks_for_ai(
     It bypasses authentication since the AI agent provides the user_id directly.
     """
     try:
-        logger.info(f"AI agent searching tasks for user {request.user_id} with query='{request.query}'")
+        logger.info(
+            f"AI agent searching tasks for user {request.user_id} with query='{request.query}'"
+        )
 
         # Convert user_id string to UUID
         user_uuid = UUID(request.user_id)
 
         # Use task service search functionality
         tasks, total = task_service.get_user_tasks(
-            session=session,
-            user_id=user_uuid,
-            search=request.query
+            session=session, user_id=user_uuid, search=request.query
         )
 
-        logger.info(f"AI agent found {len(tasks)} tasks matching '{request.query}' for user {request.user_id}")
+        logger.info(
+            f"AI agent found {len(tasks)} tasks matching '{request.query}' for user {request.user_id}"
+        )
 
         return {
             "tasks": [
@@ -496,11 +481,11 @@ async def search_tasks_for_ai(
                     "completed": task.completed,
                     "priority": task.priority,
                     "created_at": task.created_at.isoformat(),
-                    "updated_at": task.updated_at.isoformat()
+                    "updated_at": task.updated_at.isoformat(),
                 }
                 for task in tasks
             ],
-            "total": total
+            "total": total,
         }
     except ValueError as e:
         logger.error(f"Invalid user_id format: {e}")

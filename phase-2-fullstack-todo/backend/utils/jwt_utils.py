@@ -6,11 +6,13 @@ and user extraction from database based on token claims.
 """
 
 import os
-from typing import Optional, Any, Dict
-from jose import jwt, JWTError
-from jose.exceptions import ExpiredSignatureError
-from sqlmodel import Session, select
+from typing import Any, Dict, Optional
+
 from dotenv import load_dotenv
+from jose import JWTError, jwt
+from jose.exceptions import ExpiredSignatureError
+from sqlmodel import Session
+
 from models import User
 
 # Load environment variables
@@ -57,11 +59,7 @@ def decode_token(token: str) -> Dict[str, Any]:
         callers to handle different error cases appropriately.
     """
     # Decode and verify token using BETTER_AUTH_SECRET
-    payload = jwt.decode(
-        token,
-        BETTER_AUTH_SECRET,
-        algorithms=["HS256"]
-    )
+    payload = jwt.decode(token, BETTER_AUTH_SECRET, algorithms=["HS256"])
     return payload
 
 
@@ -143,6 +141,7 @@ def extract_user_from_token(token: str, session: Session) -> Optional[User]:
 
         # Convert string UUID to UUID type for database query
         from uuid import UUID
+
         try:
             user_id = UUID(user_id_str)
         except (ValueError, TypeError):

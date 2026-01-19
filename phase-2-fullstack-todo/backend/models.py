@@ -1,14 +1,16 @@
-from sqlmodel import SQLModel, Field, Relationship, Column
-from typing import Optional, List
-from datetime import datetime
-from uuid import UUID, uuid4
-from sqlalchemy import Index, UniqueConstraint, JSON
-from pydantic import validator
 import enum
+from datetime import datetime
+from typing import List, Optional
+from uuid import UUID, uuid4
+
+from pydantic import validator
+from sqlalchemy import JSON, Index, UniqueConstraint
+from sqlmodel import Column, Field, Relationship, SQLModel
 
 
 class PriorityEnum(str, enum.Enum):
     """Enumeration for task priority levels."""
+
     low = "low"
     medium = "medium"
     high = "high"
@@ -31,15 +33,22 @@ class User(SQLModel, table=True):
         updated_at: Timestamp when the user was last updated.
         tasks: Relationship to user's tasks (one-to-many).
     """
+
     __tablename__ = "users"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     username: str = Field(unique=True, max_length=50, nullable=False, index=True)
     email: str = Field(unique=True, max_length=100, nullable=False, index=True)
     password_hash: Optional[str] = Field(default=None, max_length=255, nullable=True)
-    auth_provider: str = Field(default="local", max_length=20, nullable=False, index=True)
-    google_id: Optional[str] = Field(default=None, max_length=255, unique=True, nullable=True, index=True)
-    oauth_data: Optional[str] = Field(default=None, sa_column=Column(JSON, nullable=True))
+    auth_provider: str = Field(
+        default="local", max_length=20, nullable=False, index=True
+    )
+    google_id: Optional[str] = Field(
+        default=None, max_length=255, unique=True, nullable=True, index=True
+    )
+    oauth_data: Optional[str] = Field(
+        default=None, sa_column=Column(JSON, nullable=True)
+    )
     created_at: datetime = Field(default_factory=datetime.now, nullable=False)
     updated_at: datetime = Field(default_factory=datetime.now, nullable=False)
 
@@ -66,6 +75,7 @@ class Task(SQLModel, table=True):
         tags: Relationship to task tags (one-to-many).
         created_by_thread: Optional relationship to the chat thread that created this task.
     """
+
     __tablename__ = "tasks"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -76,10 +86,7 @@ class Task(SQLModel, table=True):
     priority: str = Field(default="medium", max_length=20, nullable=False, index=True)
     source: str = Field(default="manual", max_length=50, nullable=False, index=True)
     created_by_thread_id: Optional[str] = Field(
-        default=None,
-        foreign_key="chat_threads.id",
-        nullable=True,
-        max_length=100
+        default=None, foreign_key="chat_threads.id", nullable=True, max_length=100
     )
     created_at: datetime = Field(default_factory=datetime.now, nullable=False)
     updated_at: datetime = Field(default_factory=datetime.now, nullable=False)
@@ -120,6 +127,7 @@ class TaskTag(SQLModel, table=True):
         created_at: Timestamp when the association was created.
         task: Relationship to the associated task (many-to-one).
     """
+
     __tablename__ = "task_tags"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -131,9 +139,7 @@ class TaskTag(SQLModel, table=True):
     task: Task = Relationship(back_populates="tags")
 
     # Unique constraint to prevent duplicate tag assignments to the same task
-    __table_args__ = (
-        UniqueConstraint("task_id", "tag_name", name="uq_task_tag"),
-    )
+    __table_args__ = (UniqueConstraint("task_id", "tag_name", name="uq_task_tag"),)
 
 
 class Conversation(SQLModel, table=True):
@@ -147,6 +153,7 @@ class Conversation(SQLModel, table=True):
         updated_at: Timestamp when conversation was last updated.
         messages: Relationship to conversation messages (one-to-many).
     """
+
     __tablename__ = "conversations"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -171,11 +178,14 @@ class Message(SQLModel, table=True):
         created_at: Timestamp when message was created.
         conversation: Relationship to parent conversation (many-to-one).
     """
+
     __tablename__ = "messages"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="users.id", nullable=False, index=True)
-    conversation_id: UUID = Field(foreign_key="conversations.id", nullable=False, index=True)
+    conversation_id: UUID = Field(
+        foreign_key="conversations.id", nullable=False, index=True
+    )
     role: str = Field(max_length=20, nullable=False)
     content: str = Field(nullable=False)
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
@@ -184,9 +194,7 @@ class Message(SQLModel, table=True):
     conversation: Optional[Conversation] = Relationship(back_populates="messages")
 
     # Composite index for efficient conversation retrieval by user
-    __table_args__ = (
-        Index("idx_conversation_user", "conversation_id", "user_id"),
-    )
+    __table_args__ = (Index("idx_conversation_user", "conversation_id", "user_id"),)
 
 
 class Thread(SQLModel, table=True):
@@ -201,6 +209,7 @@ class Thread(SQLModel, table=True):
         created_at: Timestamp when thread was created.
         updated_at: Timestamp when thread was last updated.
     """
+
     __tablename__ = "threads"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -210,9 +219,7 @@ class Thread(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.now, nullable=False)
 
     # Index for user's threads ordered by updated_at
-    __table_args__ = (
-        Index("idx_thread_user_updated", "user_id", "updated_at"),
-    )
+    __table_args__ = (Index("idx_thread_user_updated", "user_id", "updated_at"),)
 
 
 class ChatMessage(SQLModel, table=True):
@@ -227,10 +234,13 @@ class ChatMessage(SQLModel, table=True):
         created_at: Timestamp when message was created.
         thread: Relationship to parent thread (many-to-one).
     """
+
     __tablename__ = "chat_messages"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    thread_id: str = Field(foreign_key="chat_threads.id", nullable=False, index=True, max_length=100)
+    thread_id: str = Field(
+        foreign_key="chat_threads.id", nullable=False, index=True, max_length=100
+    )
     user_id: UUID = Field(foreign_key="users.id", nullable=False, index=True)
     role: str = Field(max_length=20, nullable=False)
     content: str = Field(nullable=False)
@@ -278,6 +288,7 @@ class ChatThread(SQLModel, table=True):
         messages: Relationship to thread messages (one-to-many, cascade delete).
         tasks: Relationship to tasks created from this thread (one-to-many).
     """
+
     __tablename__ = "chat_threads"
 
     id: str = Field(primary_key=True, max_length=100)
@@ -294,19 +305,17 @@ class ChatThread(SQLModel, table=True):
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
-            "order_by": "ChatMessage.created_at"
-        }
+            "order_by": "ChatMessage.created_at",
+        },
     )
 
     tasks: List["Task"] = Relationship(
         back_populates="created_by_thread",
-        sa_relationship_kwargs={"passive_deletes": True}
+        sa_relationship_kwargs={"passive_deletes": True},
     )
 
     # Index for efficient thread list retrieval sorted by updated_at
-    __table_args__ = (
-        Index("idx_chat_thread_user_updated", "user_id", "updated_at"),
-    )
+    __table_args__ = (Index("idx_chat_thread_user_updated", "user_id", "updated_at"),)
 
 
 # REMOVED: ClientEffectEvent and ChatTool models - not needed for basic chat functionality

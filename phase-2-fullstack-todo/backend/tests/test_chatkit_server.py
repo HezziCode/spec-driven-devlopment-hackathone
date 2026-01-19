@@ -1,8 +1,9 @@
 """Tests for ChatKit server and streaming functionality."""
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock
 from uuid import uuid4
+
+import pytest
 
 
 class TestChatKitSchemas:
@@ -28,6 +29,7 @@ class TestChatKitSchemas:
     def test_chat_request_message_required(self):
         """Test that message field is required."""
         from pydantic import ValidationError
+
         from schemas.chatkit import ChatRequest
 
         with pytest.raises(ValidationError):
@@ -36,6 +38,7 @@ class TestChatKitSchemas:
     def test_chat_request_message_min_length(self):
         """Test message minimum length validation."""
         from pydantic import ValidationError
+
         from schemas.chatkit import ChatRequest
 
         with pytest.raises(ValidationError):
@@ -44,6 +47,7 @@ class TestChatKitSchemas:
     def test_chat_request_message_max_length(self):
         """Test message maximum length validation."""
         from pydantic import ValidationError
+
         from schemas.chatkit import ChatRequest
 
         long_message = "x" * 4001
@@ -52,7 +56,7 @@ class TestChatKitSchemas:
 
     def test_thread_response(self):
         """Test ThreadResponse schema."""
-        from schemas.chatkit import ThreadResponse, ChatMessageResponse
+        from schemas.chatkit import ChatMessageResponse, ThreadResponse
 
         thread = ThreadResponse(
             id=str(uuid4()),
@@ -87,7 +91,7 @@ class TestChatKitSchemas:
 
     def test_thread_list_response(self):
         """Test ThreadListResponse schema."""
-        from schemas.chatkit import ThreadListResponse, ThreadListItem
+        from schemas.chatkit import ThreadListItem, ThreadListResponse
 
         response = ThreadListResponse(
             threads=[
@@ -178,7 +182,6 @@ class TestChatKitServer:
     async def test_server_initialization(self):
         """Test ChatKitServer can be initialized."""
         from chatkit.server import ChatKitServer
-        from chatkit.thread_manager import ThreadManager
 
         mock_agent = MagicMock()
         mock_thread_manager = MagicMock()
@@ -200,8 +203,8 @@ class TestChatKitService:
 
     def test_create_server(self):
         """Test ChatKitService.create_server returns ChatKitServer."""
-        from services.chatkit_service import ChatKitService
         from chatkit.server import ChatKitServer
+        from services.chatkit_service import ChatKitService
 
         service = ChatKitService()
         server = service.create_server([])

@@ -8,26 +8,24 @@ Usage:
     python migrations/create_tables.py
 """
 
-from sqlmodel import SQLModel, text
 import logging
-import sys
 import os
-from typing import List, Dict, Any
+import sys
+
+from sqlmodel import SQLModel, text
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from db import engine
-    from models import User, Task, TaskTag
 except ValueError as e:
     print(f"❌ Configuration error: {e}")
     sys.exit(1)
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -48,12 +46,16 @@ def verify_tables() -> bool:
 
         with Session(engine) as session:
             # Query information_schema to get list of tables
-            result = session.exec(text("""
+            result = session.exec(
+                text(
+                    """
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = 'public'
                 AND table_type = 'BASE TABLE'
-            """))
+            """
+                )
+            )
 
             existing_tables = {row[0] for row in result}
 
@@ -67,12 +69,16 @@ def verify_tables() -> bool:
 
             # Verify column counts for each table
             for table in expected_tables:
-                result = session.exec(text(f"""
+                result = session.exec(
+                    text(
+                        f"""
                     SELECT COUNT(*)
                     FROM information_schema.columns
                     WHERE table_name = '{table}'
                     AND table_schema = 'public'
-                """))
+                """
+                    )
+                )
                 column_count = result.first()[0]
                 logger.info(f"   Table '{table}' has {column_count} columns")
 
@@ -111,12 +117,16 @@ def verify_indexes() -> bool:
 
         with Session(engine) as session:
             # Query pg_indexes to get list of indexes
-            result = session.exec(text("""
+            result = session.exec(
+                text(
+                    """
                 SELECT indexname
                 FROM pg_indexes
                 WHERE schemaname = 'public'
                 AND tablename IN ('users', 'tasks', 'task_tags')
-            """))
+            """
+                )
+            )
 
             existing_indexes = {row[0] for row in result}
 
@@ -133,7 +143,9 @@ def verify_indexes() -> bool:
                 logger.info(f"   - {idx}")
 
             if found_count < len(expected_indexes):
-                logger.warning(f"⚠️  Some expected indexes not found ({found_count}/{len(expected_indexes)})")
+                logger.warning(
+                    f"⚠️  Some expected indexes not found ({found_count}/{len(expected_indexes)})"
+                )
 
             return True
 
@@ -156,7 +168,9 @@ def verify_foreign_keys() -> bool:
 
         with Session(engine) as session:
             # Query pg_constraint for foreign keys
-            result = session.exec(text("""
+            result = session.exec(
+                text(
+                    """
                 SELECT
                     tc.constraint_name,
                     tc.table_name,
@@ -173,7 +187,9 @@ def verify_foreign_keys() -> bool:
                 WHERE tc.constraint_type = 'FOREIGN KEY'
                 AND tc.table_schema = 'public'
                 AND tc.table_name IN ('tasks', 'task_tags')
-            """))
+            """
+                )
+            )
 
             foreign_keys = list(result)
 
@@ -183,9 +199,7 @@ def verify_foreign_keys() -> bool:
 
             logger.info(f"✅ Found {len(foreign_keys)} foreign key constraint(s):")
             for fk in foreign_keys:
-                logger.info(
-                    f"   - {fk[1]}.{fk[2]} -> {fk[3]}.{fk[4]} ({fk[0]})"
-                )
+                logger.info(f"   - {fk[1]}.{fk[2]} -> {fk[3]}.{fk[4]} ({fk[0]})")
 
             # Verify specific foreign keys
             expected_fks = [
@@ -195,16 +209,20 @@ def verify_foreign_keys() -> bool:
 
             for expected_fk in expected_fks:
                 found = any(
-                    fk[1] == expected_fk[0] and
-                    fk[2] == expected_fk[1] and
-                    fk[3] == expected_fk[2] and
-                    fk[4] == expected_fk[3]
+                    fk[1] == expected_fk[0]
+                    and fk[2] == expected_fk[1]
+                    and fk[3] == expected_fk[2]
+                    and fk[4] == expected_fk[3]
                     for fk in foreign_keys
                 )
                 if found:
-                    logger.info(f"   ✅ FK {expected_fk[0]}.{expected_fk[1]} -> {expected_fk[2]}.{expected_fk[3]}")
+                    logger.info(
+                        f"   ✅ FK {expected_fk[0]}.{expected_fk[1]} -> {expected_fk[2]}.{expected_fk[3]}"
+                    )
                 else:
-                    logger.warning(f"   ⚠️  FK {expected_fk[0]}.{expected_fk[1]} -> {expected_fk[2]}.{expected_fk[3]} not found")
+                    logger.warning(
+                        f"   ⚠️  FK {expected_fk[0]}.{expected_fk[1]} -> {expected_fk[2]}.{expected_fk[3]} not found"
+                    )
 
             return True
 
@@ -227,7 +245,9 @@ def verify_unique_constraints() -> bool:
 
         with Session(engine) as session:
             # Query for unique constraints
-            result = session.exec(text("""
+            result = session.exec(
+                text(
+                    """
                 SELECT
                     tc.constraint_name,
                     tc.table_name,
@@ -240,7 +260,9 @@ def verify_unique_constraints() -> bool:
                 AND tc.table_schema = 'public'
                 AND tc.table_name IN ('users', 'tasks', 'task_tags')
                 ORDER BY tc.table_name, tc.constraint_name
-            """))
+            """
+                )
+            )
 
             constraints = list(result)
 
@@ -299,7 +321,9 @@ def create_tables() -> bool:
             return True
         else:
             logger.error("\n❌ Migration completed with warnings/errors")
-            logger.error("Some verification checks failed. Please review the logs above.")
+            logger.error(
+                "Some verification checks failed. Please review the logs above."
+            )
             return False
 
     except Exception as e:

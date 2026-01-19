@@ -3,8 +3,9 @@
 import os
 import sys
 from pathlib import Path
-from sqlalchemy import create_engine, text
+
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
 
 # Load environment variables
 load_dotenv()
@@ -17,30 +18,31 @@ if not DATABASE_URL:
 # Create database engine
 engine = create_engine(DATABASE_URL, echo=True)
 
+
 def run_migration(migration_file: Path):
     """Run a single migration file."""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"Running migration: {migration_file.name}")
-    print(f"{'='*80}\n")
+    print(f"{'=' * 80}\n")
 
     # Read migration SQL
-    with open(migration_file, 'r') as f:
+    with open(migration_file, "r") as f:
         sql = f.read()
 
     # Split into individual statements (handle multi-line statements)
     statements = []
     current_statement = []
 
-    for line in sql.split('\n'):
+    for line in sql.split("\n"):
         # Skip comments and empty lines
-        if line.strip().startswith('--') or not line.strip():
+        if line.strip().startswith("--") or not line.strip():
             continue
 
         current_statement.append(line)
 
         # Check if statement is complete (ends with semicolon)
-        if line.strip().endswith(';'):
-            statements.append('\n'.join(current_statement))
+        if line.strip().endswith(";"):
+            statements.append("\n".join(current_statement))
             current_statement = []
 
     # Execute each statement
@@ -54,7 +56,7 @@ def run_migration(migration_file: Path):
                 conn.commit()
 
                 # Print results if it's a SELECT statement
-                if statement.strip().upper().startswith('SELECT'):
+                if statement.strip().upper().startswith("SELECT"):
                     rows = result.fetchall()
                     if rows:
                         print(f"Results: {len(rows)} rows")
@@ -71,6 +73,7 @@ def run_migration(migration_file: Path):
                 continue
 
     print(f"\n✓ Migration {migration_file.name} completed\n")
+
 
 def main():
     """Run all migrations in order."""
@@ -95,9 +98,10 @@ def main():
     for migration_file in migration_files:
         run_migration(migration_file)
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("All migrations completed successfully!")
-    print("="*80)
+    print("=" * 80)
+
 
 if __name__ == "__main__":
     main()

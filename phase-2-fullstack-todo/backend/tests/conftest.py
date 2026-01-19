@@ -4,14 +4,16 @@ Test configuration and fixtures for pytest.
 Provides fixtures for test database setup, session management, and cleanup.
 """
 
-import pytest
-from sqlmodel import SQLModel, Session, create_engine
-from sqlalchemy.pool import StaticPool
-from typing import Generator, Tuple
-from datetime import datetime, timedelta, timezone
 import os
+from datetime import datetime, timedelta, timezone
+from typing import Generator, Tuple
+
+import pytest
 from jose import jwt
 from passlib.context import CryptContext
+from sqlalchemy.pool import StaticPool
+from sqlmodel import Session, SQLModel, create_engine
+
 from models import User
 
 
@@ -99,7 +101,9 @@ def get_test_secret() -> str:
     Note:
         Uses BETTER_AUTH_SECRET from environment or a default test secret.
     """
-    return os.getenv("BETTER_AUTH_SECRET", "test-secret-key-at-least-32-characters-long-for-testing")
+    return os.getenv(
+        "BETTER_AUTH_SECRET", "test-secret-key-at-least-32-characters-long-for-testing"
+    )
 
 
 @pytest.fixture(name="generate_valid_jwt")
@@ -118,7 +122,10 @@ def create_valid_jwt_generator(test_secret: str):
             token = generate_valid_jwt(user_id="123", email="test@example.com")
             # Use token in test
     """
-    def _generate(user_id: str = "test-user-id", email: str = "test@example.com") -> str:
+
+    def _generate(
+        user_id: str = "test-user-id", email: str = "test@example.com"
+    ) -> str:
         """
         Generate a valid JWT token for testing.
 
@@ -133,7 +140,7 @@ def create_valid_jwt_generator(test_secret: str):
             "sub": user_id,
             "email": email,
             "exp": datetime.now(timezone.utc) + timedelta(hours=1),
-            "iat": datetime.now(timezone.utc)
+            "iat": datetime.now(timezone.utc),
         }
         return jwt.encode(payload, test_secret, algorithm="HS256")
 
@@ -156,7 +163,10 @@ def create_expired_jwt_generator(test_secret: str):
             token = generate_expired_jwt()
             # Test should reject this token
     """
-    def _generate(user_id: str = "test-user-id", email: str = "test@example.com") -> str:
+
+    def _generate(
+        user_id: str = "test-user-id", email: str = "test@example.com"
+    ) -> str:
         """
         Generate an expired JWT token for testing.
 
@@ -170,8 +180,9 @@ def create_expired_jwt_generator(test_secret: str):
         payload = {
             "sub": user_id,
             "email": email,
-            "exp": datetime.now(timezone.utc) - timedelta(hours=1),  # Expired 1 hour ago
-            "iat": datetime.now(timezone.utc) - timedelta(hours=2)
+            "exp": datetime.now(timezone.utc)
+            - timedelta(hours=1),  # Expired 1 hour ago
+            "iat": datetime.now(timezone.utc) - timedelta(hours=2),
         }
         return jwt.encode(payload, test_secret, algorithm="HS256")
 
@@ -191,7 +202,10 @@ def create_invalid_jwt_generator():
             token = generate_invalid_jwt()
             # Test should reject this token
     """
-    def _generate(user_id: str = "test-user-id", email: str = "test@example.com") -> str:
+
+    def _generate(
+        user_id: str = "test-user-id", email: str = "test@example.com"
+    ) -> str:
         """
         Generate a JWT token with invalid signature for testing.
 
@@ -206,10 +220,12 @@ def create_invalid_jwt_generator():
             "sub": user_id,
             "email": email,
             "exp": datetime.now(timezone.utc) + timedelta(hours=1),
-            "iat": datetime.now(timezone.utc)
+            "iat": datetime.now(timezone.utc),
         }
         # Use wrong secret to create invalid signature
-        return jwt.encode(payload, "wrong-secret-key-different-from-test-secret", algorithm="HS256")
+        return jwt.encode(
+            payload, "wrong-secret-key-different-from-test-secret", algorithm="HS256"
+        )
 
     return _generate
 
@@ -231,7 +247,12 @@ def create_test_user_fixture(session):
             user, password = create_test_user(username="testuser", email="test@example.com", password="TestPass123")
             # Use user and password in test
     """
-    def _create_user(username: str = "testuser", email: str = "test@example.com", password: str = "TestPass123") -> Tuple[User, str]:
+
+    def _create_user(
+        username: str = "testuser",
+        email: str = "test@example.com",
+        password: str = "TestPass123",
+    ) -> Tuple[User, str]:
         """
         Create a test user with hashed password. Returns (user, plaintext_password).
 
@@ -247,7 +268,7 @@ def create_test_user_fixture(session):
         user = User(
             username=username,
             email=email.lower(),  # Normalize email to lowercase
-            password_hash=password_hash
+            password_hash=password_hash,
         )
         session.add(user)
         session.commit()
@@ -272,7 +293,7 @@ def valid_signup_data_fixture():
     return {
         "username": "testuser",
         "email": "test@example.com",
-        "password": "SecurePass123"
+        "password": "SecurePass123",
     }
 
 
@@ -288,10 +309,7 @@ def valid_login_data_fixture():
         def test_login(valid_login_data):
             response = client.post("/auth/login", json=valid_login_data)
     """
-    return {
-        "email": "test@example.com",
-        "password": "SecurePass123"
-    }
+    return {"email": "test@example.com", "password": "SecurePass123"}
 
 
 # ============================================================================
@@ -299,8 +317,9 @@ def valid_login_data_fixture():
 # ============================================================================
 
 from fastapi.testclient import TestClient
-from main import app
+
 from db import get_session as get_session_dep
+from main import app
 from models import Task, TaskTag
 
 
@@ -319,6 +338,7 @@ def create_test_client(session: Session):
         def test_endpoint(client):
             response = client.get("/some/endpoint")
     """
+
     def get_session_override():
         return session
 
@@ -339,9 +359,7 @@ def create_test_user_a(session: Session, generate_valid_jwt) -> Tuple[User, str,
     password = "TestPass123"
     password_hash = pwd_context.hash(password)
     user = User(
-        username="user_a",
-        email="user_a@example.com",
-        password_hash=password_hash
+        username="user_a", email="user_a@example.com", password_hash=password_hash
     )
     session.add(user)
     session.commit()
@@ -362,9 +380,7 @@ def create_test_user_b(session: Session, generate_valid_jwt) -> Tuple[User, str,
     password = "TestPass456"
     password_hash = pwd_context.hash(password)
     user = User(
-        username="user_b",
-        email="user_b@example.com",
-        password_hash=password_hash
+        username="user_b", email="user_b@example.com", password_hash=password_hash
     )
     session.add(user)
     session.commit()
@@ -422,7 +438,7 @@ def create_test_task_user_a(session: Session, test_user_a) -> Task:
         description="This task belongs to user A",
         user_id=user.id,
         priority="medium",
-        completed=False
+        completed=False,
     )
     session.add(task)
     session.commit()
@@ -448,7 +464,7 @@ def create_test_task_user_b(session: Session, test_user_b) -> Task:
         description="This task belongs to user B",
         user_id=user.id,
         priority="high",
-        completed=False
+        completed=False,
     )
     session.add(task)
     session.commit()
@@ -474,7 +490,7 @@ def create_test_task_with_tags(session: Session, test_user_a) -> Task:
         description="This task has multiple tags",
         user_id=user.id,
         priority="high",
-        completed=False
+        completed=False,
     )
     session.add(task)
     session.flush()
@@ -507,7 +523,7 @@ def create_test_task_no_tags(session: Session, test_user_a) -> Task:
         description="This task has no tags",
         user_id=user.id,
         priority="low",
-        completed=False
+        completed=False,
     )
     session.add(task)
     session.commit()

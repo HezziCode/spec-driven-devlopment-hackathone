@@ -1,7 +1,5 @@
 """Tests for chat service layer."""
 
-import pytest
-
 
 # TODO: Add tests for:
 # - create_conversation function

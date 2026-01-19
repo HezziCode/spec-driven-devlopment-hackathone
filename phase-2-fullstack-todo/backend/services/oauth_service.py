@@ -5,16 +5,17 @@ Provides functions for verifying Google ID tokens, creating users from Google pr
 and managing account linking for OAuth authentication.
 """
 
-from typing import Optional, Dict, Any
-from google.oauth2 import id_token
-from google.auth.transport import requests
-from sqlmodel import Session, select, func
-from uuid import uuid4
-from datetime import datetime, timedelta, timezone
-import os
 import json
+import os
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional
+from uuid import uuid4
+
 from dotenv import load_dotenv
+from google.auth.transport import requests
+from google.oauth2 import id_token
 from jose import jwt
+from sqlmodel import Session, func, select
 
 from models import User
 
@@ -57,14 +58,12 @@ def verify_google_token(token: str) -> Dict[str, Any]:
     try:
         # Verify the token using Google's public keys
         idinfo = id_token.verify_oauth2_token(
-            token,
-            requests.Request(),
-            GOOGLE_CLIENT_ID
+            token, requests.Request(), GOOGLE_CLIENT_ID
         )
 
         # Verify issuer
-        if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-            raise ValueError('Invalid token issuer')
+        if idinfo["iss"] not in ["accounts.google.com", "https://accounts.google.com"]:
+            raise ValueError("Invalid token issuer")
 
         # Return verified claims
         return idinfo
@@ -120,8 +119,7 @@ def find_user_by_email(session: Session, email: str) -> Optional[User]:
 
 
 def create_user_from_google_profile(
-    session: Session,
-    google_claims: Dict[str, Any]
+    session: Session, google_claims: Dict[str, Any]
 ) -> User:
     """
     Create new user from Google OAuth profile.
@@ -142,9 +140,9 @@ def create_user_from_google_profile(
         >>> print(f"Created user: {user.email}")
     """
     # Extract required claims
-    google_id = google_claims.get('sub')
-    email = google_claims.get('email')
-    name = google_claims.get('name', email.split('@')[0])
+    google_id = google_claims.get("sub")
+    email = google_claims.get("email")
+    name = google_claims.get("name", email.split("@")[0])
 
     if not google_id or not email:
         raise ValueError("Missing required Google claims (sub, email)")
@@ -155,7 +153,7 @@ def create_user_from_google_profile(
         raise ValueError(f"User with Google ID {google_id} already exists")
 
     # Create username from Google name or email
-    base_username = name.replace(' ', '_').lower()
+    base_username = name.replace(" ", "_").lower()
     username = base_username
     counter = 1
 
@@ -169,11 +167,11 @@ def create_user_from_google_profile(
 
     # Create new user
     oauth_profile_data = {
-        "name": google_claims.get('name'),
-        "picture": google_claims.get('picture'),
-        "given_name": google_claims.get('given_name'),
-        "family_name": google_claims.get('family_name'),
-        "locale": google_claims.get('locale'),
+        "name": google_claims.get("name"),
+        "picture": google_claims.get("picture"),
+        "given_name": google_claims.get("given_name"),
+        "family_name": google_claims.get("family_name"),
+        "locale": google_claims.get("locale"),
     }
 
     new_user = User(
@@ -185,7 +183,7 @@ def create_user_from_google_profile(
         google_id=google_id,
         oauth_data=json.dumps(oauth_profile_data),  # Store as JSON string
         created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        updated_at=datetime.utcnow(),
     )
 
     session.add(new_user)
@@ -196,10 +194,7 @@ def create_user_from_google_profile(
 
 
 def link_google_account(
-    session: Session,
-    user: User,
-    google_id: str,
-    google_claims: Dict[str, Any]
+    session: Session, user: User, google_id: str, google_claims: Dict[str, Any]
 ) -> User:
     """
     Link Google account to existing user.
@@ -230,11 +225,11 @@ def link_google_account(
 
     # Update user with Google account link
     oauth_profile_data = {
-        "name": google_claims.get('name'),
-        "picture": google_claims.get('picture'),
-        "given_name": google_claims.get('given_name'),
-        "family_name": google_claims.get('family_name'),
-        "locale": google_claims.get('locale'),
+        "name": google_claims.get("name"),
+        "picture": google_claims.get("picture"),
+        "given_name": google_claims.get("given_name"),
+        "family_name": google_claims.get("family_name"),
+        "locale": google_claims.get("locale"),
     }
 
     user.google_id = google_id
@@ -273,7 +268,7 @@ def generate_linking_token(user_id: str, email: str, google_id: str) -> str:
         "google_id": google_id,
         "action": "link_google_account",
         "exp": expiration,
-        "iat": now
+        "iat": now,
     }
 
     token = jwt.encode(payload, BETTER_AUTH_SECRET, algorithm="HS256")
@@ -302,7 +297,7 @@ def verify_linking_token(token: str) -> Dict[str, Any]:
         claims = jwt.decode(token, BETTER_AUTH_SECRET, algorithms=["HS256"])
 
         # Verify action
-        if claims.get('action') != 'link_google_account':
+        if claims.get("action") != "link_google_account":
             raise ValueError("Invalid token action")
 
         return claims
@@ -318,5 +313,5 @@ __all__ = [
     "create_user_from_google_profile",
     "link_google_account",
     "generate_linking_token",
-    "verify_linking_token"
+    "verify_linking_token",
 ]

@@ -5,10 +5,11 @@ This module defines request and response models for user profile endpoints.
 UserResponse explicitly excludes the password_hash field for security.
 """
 
-from pydantic import BaseModel, Field, EmailStr
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
+
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserResponse(BaseModel):

@@ -19,9 +19,10 @@ from pathlib import Path
 # Add parent directory to path so we can import from backend
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from jose import jwt
-from dotenv import load_dotenv
 import argparse
+
+from dotenv import load_dotenv
+from jose import jwt
 
 # Load environment variables from parent directory
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -30,7 +31,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 def generate_token(
     user_id: str = "test-user-123",
     email: str = "test@example.com",
-    expired: bool = False
+    expired: bool = False,
 ) -> str:
     """
     Generate a JWT token for testing.
@@ -62,12 +63,7 @@ def generate_token(
         exp_time = now + timedelta(hours=24)  # Valid for 24 hours
         iat_time = now
 
-    payload = {
-        "sub": user_id,
-        "email": email,
-        "exp": exp_time,
-        "iat": iat_time
-    }
+    payload = {"sub": user_id, "email": email, "exp": exp_time, "iat": iat_time}
 
     # Generate token
     token = jwt.encode(payload, secret, algorithm="HS256")
@@ -82,26 +78,24 @@ def main():
     parser.add_argument(
         "--user-id",
         default="test-user-123",
-        help="User ID to include in the token (default: test-user-123)"
+        help="User ID to include in the token (default: test-user-123)",
     )
     parser.add_argument(
         "--email",
         default="test@example.com",
-        help="Email address to include in the token (default: test@example.com)"
+        help="Email address to include in the token (default: test@example.com)",
     )
     parser.add_argument(
         "--expired",
         action="store_true",
-        help="Generate an expired token for testing expiration handling"
+        help="Generate an expired token for testing expiration handling",
     )
 
     args = parser.parse_args()
 
     try:
         token = generate_token(
-            user_id=args.user_id,
-            email=args.email,
-            expired=args.expired
+            user_id=args.user_id, email=args.email, expired=args.expired
         )
 
         print("\n" + "=" * 80)
@@ -116,7 +110,7 @@ def main():
         print("Usage Example:")
         print("=" * 80)
         print(f'\ncurl -H "Authorization: Bearer {token}" \\')
-        print('     http://localhost:8000/api/users/me')
+        print("     http://localhost:8000/api/users/me")
         print("\n" + "=" * 80 + "\n")
 
     except ValueError as e:

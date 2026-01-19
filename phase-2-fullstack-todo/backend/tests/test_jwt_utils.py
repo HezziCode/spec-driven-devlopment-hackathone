@@ -5,9 +5,7 @@ Tests verify token decoding, verification, and user extraction utilities.
 """
 
 import pytest
-from jose import jwt
-from jose.exceptions import JWTError, ExpiredSignatureError
-from datetime import datetime, timedelta
+from jose.exceptions import ExpiredSignatureError, JWTError
 
 
 class TestJWTUtils:
@@ -138,9 +136,10 @@ class TestJWTUtils:
         - User object is returned
         - User ID matches token claim
         """
-        from utils.jwt_utils import extract_user_from_token
-        from models import User
         from sqlmodel import SQLModel
+
+        from models import User
+        from utils.jwt_utils import extract_user_from_token
 
         # Create tables
         SQLModel.metadata.create_all(engine)
@@ -150,7 +149,7 @@ class TestJWTUtils:
         user = User(
             username="testuser",
             email="extract@example.com",
-            password_hash="hashed_password"
+            password_hash="hashed_password",
         )
         session.add(user)
         session.commit()
@@ -178,8 +177,9 @@ class TestJWTUtils:
         - Returns None
         - No exceptions raised
         """
-        from utils.jwt_utils import extract_user_from_token
         from uuid import uuid4
+
+        from utils.jwt_utils import extract_user_from_token
 
         # Arrange
         token = generate_valid_jwt(user_id=str(uuid4()))

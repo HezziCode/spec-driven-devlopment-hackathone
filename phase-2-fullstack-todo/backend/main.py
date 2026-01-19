@@ -1,11 +1,12 @@
+import logging
+import os
 from contextlib import asynccontextmanager
+from datetime import datetime
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from datetime import datetime
-import os
-import logging
-from dotenv import load_dotenv
 
 # Load environment variables FIRST before any other imports that might need them
 load_dotenv()
@@ -20,12 +21,14 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 if openai_api_key and len(openai_api_key) < 50:  # Masked keys are much shorter
     # Read directly from .env file to bypass WSL2 masking
     try:
-        env_path = os.path.join(os.path.dirname(__file__), '.env')
-        with open(env_path, 'r') as f:
+        env_path = os.path.join(os.path.dirname(__file__), ".env")
+        with open(env_path, "r") as f:
             for line in f:
-                if line.startswith('OPENAI_API_KEY='):
-                    openai_api_key = line.split('=', 1)[1].strip().strip('"').strip("'")
-                    logging.info(f"Loaded API key directly from .env file (bypassed masking)")
+                if line.startswith("OPENAI_API_KEY="):
+                    openai_api_key = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    logging.info(
+                        "Loaded API key directly from .env file (bypassed masking)"
+                    )
                     break
     except Exception as e:
         logging.error(f"Failed to read API key from .env file: {e}")
@@ -35,7 +38,9 @@ if not openai_api_key:
 
 # Validate API key format
 if not openai_api_key.startswith("sk-"):
-    logging.error(f"Invalid API key format. Key should start with 'sk-' but got: {openai_api_key[:10]}...")
+    logging.error(
+        f"Invalid API key format. Key should start with 'sk-' but got: {openai_api_key[:10]}..."
+    )
     raise ValueError("Invalid OpenAI API key format")
 
 logging.info(f"Loaded OpenAI API key: {openai_api_key[:8]}...{openai_api_key[-4:]}")
@@ -46,7 +51,12 @@ os.environ["OPENAI_API_KEY"] = openai_api_key
 # Configure the agents package with the API key using proper methods at module level
 try:
     # Import the agents functions - only import what we need
-    from agents import set_default_openai_key, set_default_openai_client, set_default_openai_api, set_tracing_disabled
+    from agents import (
+        set_default_openai_api,
+        set_default_openai_client,
+        set_default_openai_key,
+        set_tracing_disabled,
+    )
 
     # Set the API key for the standard OpenAI library
     openai.api_key = openai_api_key
@@ -70,19 +80,22 @@ except ImportError as e:
     if openai_api_key:
         os.environ["OPENAI_API_KEY"] = openai_api_key
         openai.api_key = openai_api_key
-        logging.warning(f"Agents package not available, using basic OpenAI configuration: {e}")
+        logging.warning(
+            f"Agents package not available, using basic OpenAI configuration: {e}"
+        )
 except Exception as e:
-    logging.error(f"Failed to configure agents package with API key at module level: {e}")
+    logging.error(
+        f"Failed to configure agents package with API key at module level: {e}"
+    )
     if openai_api_key:
         os.environ["OPENAI_API_KEY"] = openai_api_key
         openai.api_key = openai_api_key
 
-from routes import tasks, auth, users
-from middleware.auth_middleware import verify_jwt_middleware
-
 # Import MCP server tools to register them
 import mcp_server.tools  # noqa: F401
 from mcp_server.server import mcp
+from middleware.auth_middleware import verify_jwt_middleware
+from routes import auth, tasks, users
 
 # Load environment variables
 load_dotenv()
@@ -91,7 +104,7 @@ load_dotenv()
 log_level = os.getenv("LOG_LEVEL", "INFO")
 logging.basicConfig(
     level=getattr(logging, log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -113,6 +126,7 @@ async def lifespan(app: FastAPI):
     # Verify database connection
     try:
         from db import engine
+
         with engine.connect() as connection:
             logger.info("Database connection successful")
     except Exception as e:
@@ -132,14 +146,8 @@ app = FastAPI(
     title="Phase II/III Todo API",
     description="Full-stack todo application backend with user authentication, task management, advanced filtering, and MCP server for AI agents",
     version="2.0.0",
-    contact={
-        "name": "Phase II/III Todo Team",
-        "email": "support@phase2todo.com"
-    },
-    license_info={
-        "name": "MIT",
-        "url": "https://opensource.org/licenses/MIT"
-    },
+    contact={"name": "Phase II/III Todo Team", "email": "support@phase2todo.com"},
+    license_info={"name": "MIT", "url": "https://opensource.org/licenses/MIT"},
     lifespan=lifespan,
 )
 
@@ -147,11 +155,17 @@ app = FastAPI(
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[frontend_url, "http://localhost:3000", "http://127.0.0.1:3000", "https://secure-todoz.vercel.app"],  # Development and production
+    allow_origins=[
+        frontend_url,
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://secure-todoz.vercel.app",
+    ],  # Development and production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Global exception handlers
 @app.exception_handler(Exception)
@@ -163,9 +177,10 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={
             "error": "An unexpected error occurred",
             "code": "INTERNAL_ERROR",
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     )
+
 
 # Add JWT authentication middleware
 # This middleware will run on all requests and validate JWT tokens
@@ -180,6 +195,7 @@ async def authentication_middleware(request: Request, call_next):
     """
     return await verify_jwt_middleware(request, call_next)
 
+
 # Include routes (after middleware registration)
 # Authentication routes - publicly accessible (signup, login, logout)
 app.include_router(auth.router)
@@ -192,12 +208,14 @@ app.include_router(users.router)
 
 # Chat routes - require JWT authentication for AI agent
 from routes import chat
+
 app.include_router(chat.router)
 
 # Additional routes for proxy/load balancer support
 # Mount auth routes with /api prefix to match Google Cloud Console configuration
 # This will expose the same auth endpoints at both /auth/ and /api/auth/ paths
 from fastapi import APIRouter
+
 from routes.auth import router as auth_router
 
 # Create a new router and include the auth routes with the /api prefix
@@ -209,10 +227,12 @@ app.include_router(api_router)
 
 # Custom chat API routes without ChatKit dependencies
 from routes import custom_chat
+
 app.include_router(custom_chat.router)
 
 # AI tools routes - direct HTTP endpoints for AI agents
 from routes import ai_tools
+
 app.include_router(ai_tools.router)
 
 # Mount MCP server at /mcp endpoint
@@ -227,14 +247,11 @@ def read_root():
         "message": "Phase II/III Todo Backend API",
         "version": "2.0.0",
         "docs": "/docs",
-        "mcp_endpoint": "/mcp"
+        "mcp_endpoint": "/mcp",
     }
 
 
 @app.get("/health")
 def health_check():
     """Health check endpoint - publicly accessible."""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}

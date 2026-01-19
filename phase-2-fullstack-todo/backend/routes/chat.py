@@ -1,18 +1,17 @@
 """Chat endpoint for AI agent conversations."""
 
 from fastapi import APIRouter, Depends, HTTPException
+
+from middleware.auth_middleware import get_current_user
 from schemas.chat import ChatRequest, ChatResponse
 from services.chat_service import process_message
-from middleware.auth_middleware import get_current_user
 
 router = APIRouter()
 
 
 @router.post("/users/{user_id}/chat", response_model=ChatResponse)
 async def chat(
-    user_id: str,
-    request: ChatRequest,
-    current_user = Depends(get_current_user)
+    user_id: str, request: ChatRequest, current_user=Depends(get_current_user)
 ):
     """
     Chat endpoint for AI agent conversations.
@@ -34,8 +33,7 @@ async def chat(
     # Verify user owns this conversation (user isolation)
     if str(current_user.id) != user_id:
         raise HTTPException(
-            status_code=403,
-            detail="You can only access your own conversations"
+            status_code=403, detail="You can only access your own conversations"
         )
 
     # Process message through agent
@@ -43,11 +41,8 @@ async def chat(
         result = await process_message(
             user_id=str(current_user.id),
             conversation_id=request.conversation_id,
-            message=request.message
+            message=request.message,
         )
         return result
     except RuntimeError as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=500, detail=str(e))

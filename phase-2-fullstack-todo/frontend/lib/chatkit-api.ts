@@ -180,5 +180,5 @@ export async function deleteThread(userId: string, threadId: string): Promise<vo
  * @returns User ID or null if not authenticated
  */
 export function getAuthenticatedUserId(): string | null {
-  return getCurrentUserId();
+  return null; // TODO: Implement based on actual auth module exports
 }

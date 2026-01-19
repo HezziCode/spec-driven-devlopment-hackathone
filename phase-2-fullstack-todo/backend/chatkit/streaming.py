@@ -6,9 +6,7 @@ from typing import AsyncGenerator
 logger = logging.getLogger(__name__)
 
 
-async def format_sse_event(
-    event_type: str, data: str | dict[str, str]
-) -> str:
+async def format_sse_event(event_type: str, data: str | dict[str, str]) -> str:
     """Format data as an SSE event.
 
     Args:
@@ -55,7 +53,6 @@ class StreamingResponse:
         Returns:
             SSE-formatted tool call event
         """
-        import json
 
         return await format_sse_event(
             "tool_call",
@@ -63,9 +60,7 @@ class StreamingResponse:
         )
 
     @staticmethod
-    async def tool_result_event(
-        tool_name: str, result: dict[str, str]
-    ) -> str:
+    async def tool_result_event(tool_name: str, result: dict[str, str]) -> str:
         """Create a tool result event.
 
         Args:
@@ -75,7 +70,6 @@ class StreamingResponse:
         Returns:
             SSE-formatted tool result event
         """
-        import json
 
         return await format_sse_event(
             "tool_result",

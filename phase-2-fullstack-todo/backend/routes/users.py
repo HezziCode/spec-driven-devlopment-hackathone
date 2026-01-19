@@ -5,14 +5,15 @@ Provides endpoints for authenticated users to view and update their profiles.
 All endpoints require JWT authentication and enforce user isolation.
 """
 
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
-from uuid import UUID
 
 from db import get_session
 from middleware.auth_middleware import get_user_id_from_token
+from schemas.user import UpdateUserRequest, UserResponse
 from services.user_service import get_user_profile, update_user_profile
-from schemas.user import UserResponse, UpdateUserRequest
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -43,7 +44,9 @@ async def get_user(
     """
     # Verify user_id matches JWT
     if str(user_id) != current_user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to view this profile")
+        raise HTTPException(
+            status_code=403, detail="Not authorized to view this profile"
+        )
 
     # Get profile
     user = get_user_profile(session, user_id)

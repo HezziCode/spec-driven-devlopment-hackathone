@@ -6,16 +6,9 @@ with comprehensive coverage of security, validation, and
 duplicate checking requirements.
 """
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlmodel import Session
-from uuid import UUID, uuid4
-from typing import Tuple
+from uuid import uuid4
 
-from main import app
 from models import User
-from services.user_service import update_user_profile
-from schemas.user import UpdateUserRequest
 
 
 def test_get_profile_success(client, test_user, auth_headers):
@@ -53,14 +46,15 @@ def test_get_profile_cross_user_blocked(client, test_user, auth_headers, session
     user, _, token = test_user
 
     # Create another user
-    from utils.jwt_utils import create_access_token
     import bcrypt
 
-    other_password_hash = bcrypt.hashpw("OtherPass123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    other_password_hash = bcrypt.hashpw(
+        "OtherPass123".encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
     other_user = User(
         username="otheruser",
         email="other@example.com",
-        password_hash=other_password_hash
+        password_hash=other_password_hash,
     )
     session.add(other_user)
     session.commit()
@@ -100,9 +94,7 @@ def test_put_update_username_success(client, test_user, auth_headers):
     user, _, _ = test_user
 
     response = client.put(
-        f"/users/{user.id}",
-        json={"username": "newusername"},
-        headers=auth_headers
+        f"/users/{user.id}", json={"username": "newusername"}, headers=auth_headers
     )
 
     assert response.status_code == 200
@@ -123,7 +115,7 @@ def test_put_update_email_success(client, test_user, auth_headers):
     response = client.put(
         f"/users/{user.id}",
         json={"email": "newemail@example.com"},
-        headers=auth_headers
+        headers=auth_headers,
     )
 
     assert response.status_code == 200
@@ -144,7 +136,7 @@ def test_put_update_both_success(client, test_user, auth_headers):
     response = client.put(
         f"/users/{user.id}",
         json={"username": "newusername", "email": "newemail@example.com"},
-        headers=auth_headers
+        headers=auth_headers,
     )
 
     assert response.status_code == 200
@@ -163,23 +155,22 @@ def test_put_update_username_duplicate(client, test_user, auth_headers, session)
     user, _, _ = test_user
 
     # Create another user with a username we'll try to duplicate
-    from utils.jwt_utils import create_access_token
     import bcrypt
 
-    other_password_hash = bcrypt.hashpw("OtherPass123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    other_password_hash = bcrypt.hashpw(
+        "OtherPass123".encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
     other_user = User(
         username="existinguser",
         email="other@example.com",
-        password_hash=other_password_hash
+        password_hash=other_password_hash,
     )
     session.add(other_user)
     session.commit()
 
     # Try to update to the other user's username
     response = client.put(
-        f"/users/{user.id}",
-        json={"username": "existinguser"},
-        headers=auth_headers
+        f"/users/{user.id}", json={"username": "existinguser"}, headers=auth_headers
     )
 
     assert response.status_code == 409
@@ -192,14 +183,15 @@ def test_put_update_email_duplicate(client, test_user, auth_headers, session):
     user, _, _ = test_user
 
     # Create another user with an email we'll try to duplicate
-    from utils.jwt_utils import create_access_token
     import bcrypt
 
-    other_password_hash = bcrypt.hashpw("OtherPass123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    other_password_hash = bcrypt.hashpw(
+        "OtherPass123".encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
     other_user = User(
         username="otheruser",
         email="existing@example.com",
-        password_hash=other_password_hash
+        password_hash=other_password_hash,
     )
     session.add(other_user)
     session.commit()
@@ -208,7 +200,7 @@ def test_put_update_email_duplicate(client, test_user, auth_headers, session):
     response = client.put(
         f"/users/{user.id}",
         json={"email": "existing@example.com"},
-        headers=auth_headers
+        headers=auth_headers,
     )
 
     assert response.status_code == 409
@@ -216,19 +208,22 @@ def test_put_update_email_duplicate(client, test_user, auth_headers, session):
     assert "existing@example.com" in response.json()["detail"]
 
 
-def test_put_update_email_case_insensitive_duplicate(client, test_user, auth_headers, session):
+def test_put_update_email_case_insensitive_duplicate(
+    client, test_user, auth_headers, session
+):
     """Test updating email to case-insensitive duplicate value returns 409."""
     user, _, _ = test_user
 
     # Create another user with an email we'll try to duplicate (different case)
-    from utils.jwt_utils import create_access_token
     import bcrypt
 
-    other_password_hash = bcrypt.hashpw("OtherPass123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    other_password_hash = bcrypt.hashpw(
+        "OtherPass123".encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
     other_user = User(
         username="otheruser",
         email="existing@example.com",  # lowercase
-        password_hash=other_password_hash
+        password_hash=other_password_hash,
     )
     session.add(other_user)
     session.commit()
@@ -237,7 +232,7 @@ def test_put_update_email_case_insensitive_duplicate(client, test_user, auth_hea
     response = client.put(
         f"/users/{user.id}",
         json={"email": "EXISTING@EXAMPLE.COM"},  # uppercase
-        headers=auth_headers
+        headers=auth_headers,
     )
 
     assert response.status_code == 409
@@ -251,18 +246,14 @@ def test_put_update_username_length_validation(client, test_user, auth_headers):
 
     # Test too short (2 chars)
     response = client.put(
-        f"/users/{user.id}",
-        json={"username": "ab"},
-        headers=auth_headers
+        f"/users/{user.id}", json={"username": "ab"}, headers=auth_headers
     )
     assert response.status_code == 422
 
     # Test too long (51 chars)
     long_username = "a" * 51
     response = client.put(
-        f"/users/{user.id}",
-        json={"username": long_username},
-        headers=auth_headers
+        f"/users/{user.id}", json={"username": long_username}, headers=auth_headers
     )
     assert response.status_code == 422
 
@@ -273,9 +264,7 @@ def test_put_update_email_format_validation(client, test_user, auth_headers):
 
     # Test invalid email format
     response = client.put(
-        f"/users/{user.id}",
-        json={"email": "invalid-email"},
-        headers=auth_headers
+        f"/users/{user.id}", json={"email": "invalid-email"}, headers=auth_headers
     )
     assert response.status_code == 422
 
@@ -285,14 +274,15 @@ def test_put_update_cross_user_blocked(client, test_user, auth_headers, session)
     user, _, token = test_user
 
     # Create another user
-    from utils.jwt_utils import create_access_token
     import bcrypt
 
-    other_password_hash = bcrypt.hashpw("OtherPass123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    other_password_hash = bcrypt.hashpw(
+        "OtherPass123".encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
     other_user = User(
         username="otheruser",
         email="other@example.com",
-        password_hash=other_password_hash
+        password_hash=other_password_hash,
     )
     session.add(other_user)
     session.commit()
@@ -302,7 +292,7 @@ def test_put_update_cross_user_blocked(client, test_user, auth_headers, session)
     response = client.put(
         f"/users/{other_user.id}",
         json={"username": "hacker_username"},
-        headers=auth_headers
+        headers=auth_headers,
     )
     assert response.status_code == 403
     assert "authorized" in response.json()["detail"].lower()
@@ -312,11 +302,7 @@ def test_put_update_neither_field_provided(client, test_user, auth_headers):
     """Test PUT with neither username nor email returns 422."""
     user, _, _ = test_user
 
-    response = client.put(
-        f"/users/{user.id}",
-        json={},
-        headers=auth_headers
-    )
+    response = client.put(f"/users/{user.id}", json={}, headers=auth_headers)
     assert response.status_code == 422
     assert "at least one field" in response.json()["detail"].lower()
 
@@ -328,7 +314,7 @@ def test_put_update_username_idempotent(client, test_user, auth_headers):
     response = client.put(
         f"/users/{user.id}",
         json={"username": user.username},  # Same username
-        headers=auth_headers
+        headers=auth_headers,
     )
 
     assert response.status_code == 200
@@ -343,7 +329,7 @@ def test_put_update_email_idempotent(client, test_user, auth_headers):
     response = client.put(
         f"/users/{user.id}",
         json={"email": user.email},  # Same email
-        headers=auth_headers
+        headers=auth_headers,
     )
 
     assert response.status_code == 200
@@ -351,18 +337,22 @@ def test_put_update_email_idempotent(client, test_user, auth_headers):
     assert data["email"] == user.email
 
 
-def test_put_update_username_duplicate_with_valid_email(client, test_user, auth_headers, session):
+def test_put_update_username_duplicate_with_valid_email(
+    client, test_user, auth_headers, session
+):
     """Test updating username to duplicate with valid email returns 409 (neither field updated)."""
     user, _, _ = test_user
 
     # Create another user with a username we'll try to duplicate
     import bcrypt
 
-    other_password_hash = bcrypt.hashpw("OtherPass123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    other_password_hash = bcrypt.hashpw(
+        "OtherPass123".encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
     other_user = User(
         username="existinguser",
         email="existing@example.com",
-        password_hash=other_password_hash
+        password_hash=other_password_hash,
     )
     session.add(other_user)
     session.commit()
@@ -375,7 +365,7 @@ def test_put_update_username_duplicate_with_valid_email(client, test_user, auth_
     response = client.put(
         f"/users/{user.id}",
         json={"username": "existinguser", "email": "newemail@example.com"},
-        headers=auth_headers
+        headers=auth_headers,
     )
 
     assert response.status_code == 409
@@ -388,18 +378,22 @@ def test_put_update_username_duplicate_with_valid_email(client, test_user, auth_
     assert user.email == original_email
 
 
-def test_put_update_email_duplicate_with_valid_username(client, test_user, auth_headers, session):
+def test_put_update_email_duplicate_with_valid_username(
+    client, test_user, auth_headers, session
+):
     """Test updating email to duplicate with valid username returns 409 (neither field updated)."""
     user, _, _ = test_user
 
     # Create another user with an email we'll try to duplicate
     import bcrypt
 
-    other_password_hash = bcrypt.hashpw("OtherPass123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    other_password_hash = bcrypt.hashpw(
+        "OtherPass123".encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
     other_user = User(
         username="otheruser",
         email="existing@example.com",
-        password_hash=other_password_hash
+        password_hash=other_password_hash,
     )
     session.add(other_user)
     session.commit()
@@ -412,7 +406,7 @@ def test_put_update_email_duplicate_with_valid_username(client, test_user, auth_
     response = client.put(
         f"/users/{user.id}",
         json={"username": "newusername", "email": "existing@example.com"},
-        headers=auth_headers
+        headers=auth_headers,
     )
 
     assert response.status_code == 409

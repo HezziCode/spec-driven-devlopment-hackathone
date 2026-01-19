@@ -1,21 +1,20 @@
+from uuid import uuid4
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
-from uuid import uuid4
 
-from main import app
 from db import get_session
-from models import User, Task, TaskTag, PriorityEnum
+from main import app
+from models import PriorityEnum, Task, TaskTag, User
 
 
 # Set up a test database
 @pytest.fixture(name="session")
 def session_fixture():
     engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
@@ -39,7 +38,7 @@ def test_create_task(client: TestClient, session: Session):
         id=uuid4(),
         username="testuser",
         email="test@example.com",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
     session.add(user)
     session.commit()
@@ -49,7 +48,7 @@ def test_create_task(client: TestClient, session: Session):
         "title": "Test Task",
         "description": "This is a test task",
         "priority": "high",
-        "tags": ["test", "important"]
+        "tags": ["test", "important"],
     }
 
     # This test would require proper JWT authentication in a real scenario
@@ -67,7 +66,7 @@ def test_get_tasks(client: TestClient, session: Session):
         id=uuid4(),
         username="testuser2",
         email="test2@example.com",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
     session.add(user)
     session.commit()
@@ -85,7 +84,7 @@ def test_get_task_by_id(client: TestClient, session: Session):
         id=uuid4(),
         username="testuser3",
         email="test3@example.com",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
     session.add(user)
     session.commit()
@@ -96,7 +95,7 @@ def test_get_task_by_id(client: TestClient, session: Session):
         title="Test Task",
         description="This is another test task",
         completed=False,
-        priority=PriorityEnum.medium
+        priority=PriorityEnum.medium,
     )
     session.add(task)
     session.commit()
@@ -105,12 +104,18 @@ def test_get_task_by_id(client: TestClient, session: Session):
     response = client.get(f"/users/{user.id}/tasks/{task.id}")
 
     # Since we don't have JWT setup in test, this will likely return 401 or 403
-    assert response.status_code in [401, 403, 200, 404]  # Allow auth failures, success, or not found
+    assert response.status_code in [
+        401,
+        403,
+        200,
+        404,
+    ]  # Allow auth failures, success, or not found
 
 
 # ============================================================================
 # Task Update Operations Tests (PUT and PATCH)
 # ============================================================================
+
 
 def test_put_task_success(client: TestClient, session: Session):
     """Test PUT successfully updates all task fields."""
@@ -119,7 +124,7 @@ def test_put_task_success(client: TestClient, session: Session):
         id=uuid4(),
         username="testuser_put",
         email="testput@example.com",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
     session.add(user)
     session.commit()
@@ -131,7 +136,7 @@ def test_put_task_success(client: TestClient, session: Session):
         title="Original Task",
         description="Original Description",
         completed=False,
-        priority=PriorityEnum.medium
+        priority=PriorityEnum.medium,
     )
     session.add(task)
     session.commit()
@@ -142,7 +147,7 @@ def test_put_task_success(client: TestClient, session: Session):
         "description": "Completely new description",
         "completed": True,
         "priority": "high",
-        "tags": ["updated", "tags"]
+        "tags": ["updated", "tags"],
     }
 
     # Make PUT request
@@ -159,7 +164,7 @@ def test_put_task_with_tags(client: TestClient, session: Session):
         id=uuid4(),
         username="testuser_put_tags",
         email="testputtags@example.com",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
     session.add(user)
     session.commit()
@@ -171,7 +176,7 @@ def test_put_task_with_tags(client: TestClient, session: Session):
         title="Task With Tags",
         description="Description",
         completed=False,
-        priority=PriorityEnum.medium
+        priority=PriorityEnum.medium,
     )
     session.add(task)
     session.flush()
@@ -188,7 +193,7 @@ def test_put_task_with_tags(client: TestClient, session: Session):
         "title": "Updated",
         "completed": False,
         "priority": "medium",
-        "tags": ["brand", "new", "tags"]
+        "tags": ["brand", "new", "tags"],
     }
 
     # Make PUT request
@@ -205,17 +210,13 @@ def test_put_task_not_found(client: TestClient, session: Session):
         id=uuid4(),
         username="testuser_put_notfound",
         email="testputnotfound@example.com",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
     session.add(user)
     session.commit()
 
     fake_task_id = uuid4()
-    update_data = {
-        "title": "Ghost Task",
-        "completed": False,
-        "priority": "medium"
-    }
+    update_data = {"title": "Ghost Task", "completed": False, "priority": "medium"}
 
     # Make PUT request
     response = client.put(f"/users/{user.id}/tasks/{fake_task_id}", json=update_data)
@@ -231,7 +232,7 @@ def test_patch_task_only_title(client: TestClient, session: Session):
         id=uuid4(),
         username="testuser_patch",
         email="testpatch@example.com",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
     session.add(user)
     session.commit()
@@ -243,15 +244,13 @@ def test_patch_task_only_title(client: TestClient, session: Session):
         title="Original Task",
         description="Original Description",
         completed=False,
-        priority=PriorityEnum.medium
+        priority=PriorityEnum.medium,
     )
     session.add(task)
     session.commit()
 
     # Partial update data
-    update_data = {
-        "title": "Partially Updated"
-    }
+    update_data = {"title": "Partially Updated"}
 
     # Make PATCH request
     response = client.patch(f"/users/{user.id}/tasks/{task.id}", json=update_data)
@@ -267,7 +266,7 @@ def test_patch_task_toggle_completed(client: TestClient, session: Session):
         id=uuid4(),
         username="testuser_patch_complete",
         email="testpatchcomplete@example.com",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
     session.add(user)
     session.commit()
@@ -279,15 +278,13 @@ def test_patch_task_toggle_completed(client: TestClient, session: Session):
         title="Task to Complete",
         description="Description",
         completed=False,
-        priority=PriorityEnum.medium
+        priority=PriorityEnum.medium,
     )
     session.add(task)
     session.commit()
 
     # Update only completed field
-    update_data = {
-        "completed": True
-    }
+    update_data = {"completed": True}
 
     # Make PATCH request
     response = client.patch(f"/users/{user.id}/tasks/{task.id}", json=update_data)
@@ -303,7 +300,7 @@ def test_patch_task_only_priority(client: TestClient, session: Session):
         id=uuid4(),
         username="testuser_patch_priority",
         email="testpatchpriority@example.com",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
     session.add(user)
     session.commit()
@@ -315,15 +312,13 @@ def test_patch_task_only_priority(client: TestClient, session: Session):
         title="Task",
         description="Description",
         completed=False,
-        priority=PriorityEnum.medium
+        priority=PriorityEnum.medium,
     )
     session.add(task)
     session.commit()
 
     # Update only priority
-    update_data = {
-        "priority": "critical"
-    }
+    update_data = {"priority": "critical"}
 
     # Make PATCH request
     response = client.patch(f"/users/{user.id}/tasks/{task.id}", json=update_data)
@@ -339,7 +334,7 @@ def test_patch_task_with_new_tags(client: TestClient, session: Session):
         id=uuid4(),
         username="testuser_patch_tags",
         email="testpatchtags@example.com",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
     session.add(user)
     session.commit()
@@ -351,7 +346,7 @@ def test_patch_task_with_new_tags(client: TestClient, session: Session):
         title="Task With Tags",
         description="Description",
         completed=False,
-        priority=PriorityEnum.medium
+        priority=PriorityEnum.medium,
     )
     session.add(task)
     session.flush()
@@ -362,9 +357,7 @@ def test_patch_task_with_new_tags(client: TestClient, session: Session):
     session.commit()
 
     # Update with new tags
-    update_data = {
-        "tags": ["new-tag-1", "new-tag-2"]
-    }
+    update_data = {"tags": ["new-tag-1", "new-tag-2"]}
 
     # Make PATCH request
     response = client.patch(f"/users/{user.id}/tasks/{task.id}", json=update_data)
@@ -380,15 +373,13 @@ def test_patch_task_not_found(client: TestClient, session: Session):
         id=uuid4(),
         username="testuser_patch_notfound",
         email="testpatchnotfound@example.com",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
     session.add(user)
     session.commit()
 
     fake_task_id = uuid4()
-    update_data = {
-        "title": "Ghost Task"
-    }
+    update_data = {"title": "Ghost Task"}
 
     # Make PATCH request
     response = client.patch(f"/users/{user.id}/tasks/{fake_task_id}", json=update_data)
@@ -404,7 +395,7 @@ def test_update_task_validation_error(client: TestClient, session: Session):
         id=uuid4(),
         username="testuser_validation",
         email="testvalidation@example.com",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
     session.add(user)
     session.commit()
@@ -416,15 +407,13 @@ def test_update_task_validation_error(client: TestClient, session: Session):
         title="Task",
         description="Description",
         completed=False,
-        priority=PriorityEnum.medium
+        priority=PriorityEnum.medium,
     )
     session.add(task)
     session.commit()
 
     # Invalid priority
-    update_data = {
-        "priority": "super-urgent"  # Invalid enum value
-    }
+    update_data = {"priority": "super-urgent"}  # Invalid enum value
 
     # Make PATCH request
     response = client.patch(f"/users/{user.id}/tasks/{task.id}", json=update_data)

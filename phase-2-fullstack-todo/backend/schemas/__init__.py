@@ -6,13 +6,15 @@ This package contains Pydantic schemas for request/response validation.
 
 from .chat import ChatRequest, ChatResponse, ToolCall
 from .chatkit import (
-    ChatRequest as ChatKitRequest,
     ChatMessageResponse,
-    ThreadResponse,
+    ErrorResponse,
+    StreamingResponse,
     ThreadListItem,
     ThreadListResponse,
-    StreamingResponse,
-    ErrorResponse,
+    ThreadResponse,
+)
+from .chatkit import (
+    ChatRequest as ChatKitRequest,
 )
 
 __all__ = [

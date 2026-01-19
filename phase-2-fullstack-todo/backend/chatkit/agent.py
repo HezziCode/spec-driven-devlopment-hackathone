@@ -2,8 +2,7 @@
 
 from typing import Any
 
-from agents import Agent
-from agents import ModelSettings
+from agents import Agent, ModelSettings
 
 # Chat-specific instructions - focused on task management via conversation
 CHAT_INSTRUCTIONS = """You are ChatKit, a proactive AI assistant for task management.

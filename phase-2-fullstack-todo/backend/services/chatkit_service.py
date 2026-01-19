@@ -5,30 +5,29 @@ orchestrating between the ThreadManager and ChatKitServer.
 """
 
 import logging
+from datetime import datetime
 from typing import AsyncGenerator
 from uuid import UUID
-from datetime import datetime
-from sqlmodel import Session, select, func
 
-from chatkit.agent import create_chat_agent
-from chatkit.context import ChatContext
-from chatkit.server import ChatKitServer
-from chatkit.thread_manager import ThreadManager
-
-# Import models for message persistence
-from models import ChatThread, ChatMessage
+from sqlmodel import Session, func, select
 
 # Import agent tools for task management
 from ai_agents.tools import (
     create_task,
-    list_tasks,
-    get_task,
-    mark_complete,
-    update_task,
     delete_task,
     delete_task_by_name,
+    get_task,
+    list_tasks,
+    mark_complete,
     search_tasks,
+    update_task,
 )
+from chatkit.agent import create_chat_agent
+from chatkit.server import ChatKitServer
+from chatkit.thread_manager import ThreadManager
+
+# Import models for message persistence
+from models import ChatMessage, ChatThread
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +58,7 @@ class ChatKitService:
         Returns:
             Configured ChatKitServer instance
         """
-        from chatkit.agent import create_chat_agent
+
         agent = create_chat_agent(tools or [])
         return ChatKitServer(agent=agent, session=self.session)
 
@@ -103,7 +102,7 @@ class ChatKitService:
                     logger.info(f"Created new thread {thread_id} for user {user_id}")
 
                     # Yield the thread ID in a special event so frontend knows about the new thread
-                    yield f"event: thread_created\ndata: {{\"threadId\":\"{thread_id}\"}}\n\n"
+                    yield f'event: thread_created\ndata: {{"threadId":"{thread_id}"}}\n\n'
                 except ValueError as e:
                     # Thread limit reached
                     yield f"event: error\ndata: {str(e)}\n\n"
@@ -113,12 +112,12 @@ class ChatKitService:
                 existing_thread = self.session.get(ChatThread, thread_id)
                 if not existing_thread:
                     logger.error(f"Thread {thread_id} does not exist in database")
-                    yield f"event: error\ndata: Thread not found\n\n"
+                    yield "event: error\ndata: Thread not found\n\n"
                     return
                 # Verify user ownership of the thread
                 if str(existing_thread.user_id) != user_id:
                     logger.error(f"User {user_id} does not own thread {thread_id}")
-                    yield f"event: error\ndata: Not authorized to access this thread\n\n"
+                    yield "event: error\ndata: Not authorized to access this thread\n\n"
                     return
 
             # Step 2: Save user message to database
@@ -188,7 +187,10 @@ class ChatKitService:
             if not thread:
                 # Add a small delay and retry to handle race conditions in serverless environments
                 import time
-                time.sleep(0.1)  # Small delay to allow database transaction to propagate
+
+                time.sleep(
+                    0.1
+                )  # Small delay to allow database transaction to propagate
                 # Refresh the session to ensure we get the latest data from the database
                 self.session.expire_all()
                 thread = self.session.get(ChatThread, thread_id)
@@ -228,10 +230,10 @@ class ChatKitService:
                         "id": str(m.id),
                         "role": m.role,
                         "content": m.content,
-                        "created_at": m.created_at.isoformat()
+                        "created_at": m.created_at.isoformat(),
                     }
                     for m in messages
-                ]
+                ],
             }
         except Exception as e:
             logger.error(f"Error getting thread {thread_id} for user {user_id}: {e}")
@@ -267,7 +269,9 @@ class ChatKitService:
 
     # ==================== Message Persistence Helper Methods ====================
 
-    def _save_message(self, thread_id: str, user_id: str, role: str, content: str) -> ChatMessage:
+    def _save_message(
+        self, thread_id: str, user_id: str, role: str, content: str
+    ) -> ChatMessage:
         """Save a message to the database.
 
         Args:
@@ -280,10 +284,7 @@ class ChatKitService:
             Saved ChatMessage instance
         """
         message = ChatMessage(
-            thread_id=thread_id,
-            user_id=UUID(user_id),
-            role=role,
-            content=content
+            thread_id=thread_id, user_id=UUID(user_id), role=role, content=content
         )
         self.session.add(message)
         self.session.commit()
@@ -329,7 +330,9 @@ class ChatKitService:
             self.session.expunge(thread)
             logger.info(f"Updated metadata for thread {thread_id}")
 
-    def _create_thread(self, user_id: str, first_message: str | None = None) -> ChatThread:
+    def _create_thread(
+        self, user_id: str, first_message: str | None = None
+    ) -> ChatThread:
         """Create a new chat thread with limit enforcement and auto-generated title.
 
         Args:
@@ -344,12 +347,13 @@ class ChatKitService:
         """
         # Check thread count for this user
         count = self.session.exec(
-            select(func.count(ChatThread.id))
-            .where(ChatThread.user_id == UUID(user_id))
+            select(func.count(ChatThread.id)).where(ChatThread.user_id == UUID(user_id))
         ).one()
 
         if count >= 20:
-            raise ValueError("Thread limit reached. Delete old threads to create new ones.")
+            raise ValueError(
+                "Thread limit reached. Delete old threads to create new ones."
+            )
 
         # Auto-generate title from first message if provided
         thread_name = "New Chat"
@@ -358,7 +362,13 @@ class ChatKitService:
             thread_name = first_message.strip()
             # Remove common prefixes/suffixes
             import re
-            thread_name = re.sub(r'^(hi|hello|hey|help|can you|please)[,\s!?]*', '', thread_name, flags=re.IGNORECASE)
+
+            thread_name = re.sub(
+                r"^(hi|hello|hey|help|can you|please)[,\s!?]*",
+                "",
+                thread_name,
+                flags=re.IGNORECASE,
+            )
             # Truncate to reasonable length
             if len(thread_name) > 50:
                 thread_name = thread_name[:47] + "..."
@@ -368,13 +378,10 @@ class ChatKitService:
 
         # Generate a unique thread ID (using UUID format as string)
         from uuid import uuid4
+
         thread_id = str(uuid4())
 
-        thread = ChatThread(
-            id=thread_id,
-            user_id=UUID(user_id),
-            name=thread_name
-        )
+        thread = ChatThread(id=thread_id, user_id=UUID(user_id), name=thread_name)
         self.session.add(thread)
         self.session.commit()
         self.session.refresh(thread)
@@ -384,12 +391,15 @@ class ChatKitService:
         # Additional synchronization to ensure database visibility
         self.session.expire_all()
 
-        logger.info(f"Created new thread {thread_id} for user {user_id} with title: {thread_name}")
+        logger.info(
+            f"Created new thread {thread_id} for user {user_id} with title: {thread_name}"
+        )
 
         # Verify the thread exists in database before returning
         verified_thread = self.session.get(ChatThread, thread_id)
         if not verified_thread:
             import time
+
             time.sleep(0.1)  # Brief delay
             self.session.expire_all()
             verified_thread = self.session.get(ChatThread, thread_id)
@@ -419,6 +429,7 @@ def get_chatkit_service(session: Session) -> ChatKitService:
 
 # ==================== ChatKit Session Management Functions ====================
 
+
 async def create_chatkit_session(user_id: UUID, session: "Session") -> dict:
     """
     Generate ChatKit client secret for user and store in database.
@@ -430,10 +441,11 @@ async def create_chatkit_session(user_id: UUID, session: "Session") -> dict:
     Returns:
         Dictionary with client_secret and expires_at.
     """
-    from models import ChatKitSession
-    from datetime import datetime, timedelta
     import hashlib
     import secrets
+    from datetime import datetime, timedelta
+
+    from models import ChatKitSession
 
     # Generate a unique client secret
     client_secret = f"cs_{secrets.token_urlsafe(32)}"
@@ -449,7 +461,7 @@ async def create_chatkit_session(user_id: UUID, session: "Session") -> dict:
         user_id=user_id,
         client_secret_hash=client_secret_hash,
         expires_at=expires_at,
-        status="active"
+        status="active",
     )
     session.add(db_session)
     session.commit()
@@ -457,13 +469,12 @@ async def create_chatkit_session(user_id: UUID, session: "Session") -> dict:
 
     logger.info(f"Created ChatKit session for user {user_id}")
 
-    return {
-        "client_secret": client_secret,
-        "expires_at": expires_at.isoformat() + "Z"
-    }
+    return {"client_secret": client_secret, "expires_at": expires_at.isoformat() + "Z"}
 
 
-async def sync_thread(user_id: UUID, thread_data: dict, session: "Session") -> "ChatThread":
+async def sync_thread(
+    user_id: UUID, thread_data: dict, session: "Session"
+) -> "ChatThread":
     """
     Sync thread metadata to database (create or update).
 
@@ -475,8 +486,9 @@ async def sync_thread(user_id: UUID, thread_data: dict, session: "Session") -> "
     Returns:
         ChatThread model instance.
     """
-    from models import ChatThread
     from datetime import datetime
+
+    from models import ChatThread
 
     thread_id = thread_data["thread_id"]
 
@@ -498,7 +510,7 @@ async def sync_thread(user_id: UUID, thread_data: dict, session: "Session") -> "
             user_id=user_id,
             name=thread_data["name"],
             last_message_preview=thread_data.get("last_message_preview"),
-            message_count=thread_data["message_count"]
+            message_count=thread_data["message_count"],
         )
         session.add(thread)
         logger.info(f"Created ChatThread {thread_id} for user {user_id}")
@@ -508,7 +520,9 @@ async def sync_thread(user_id: UUID, thread_data: dict, session: "Session") -> "
     return thread
 
 
-async def list_threads(user_id: UUID, session: "Session", limit: int = 50, offset: int = 0) -> tuple[list, int]:
+async def list_threads(
+    user_id: UUID, session: "Session", limit: int = 50, offset: int = 0
+) -> tuple[list, int]:
     """
     List all chat threads for a user.
 
@@ -521,8 +535,9 @@ async def list_threads(user_id: UUID, session: "Session", limit: int = 50, offse
     Returns:
         Tuple of (list of ChatThread models, total count).
     """
-    from models import ChatThread
     from sqlmodel import select
+
+    from models import ChatThread
 
     # Query threads for this user, ordered by updated_at descending
     query = (

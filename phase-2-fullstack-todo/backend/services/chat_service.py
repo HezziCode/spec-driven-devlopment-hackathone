@@ -6,15 +6,16 @@ and agent execution for natural language task management.
 
 import logging
 import os
-from typing import List, Optional
 from datetime import datetime
-from uuid import UUID, uuid4
-from sqlmodel import Session, select
-from models import Conversation, Message
+from typing import List, Optional
+
+from agents import Runner
+from sqlmodel import select
+
 from ai_agents import task_manager_agent
 from ai_agents.context import AgentContext
 from db import get_session
-from agents import Runner
+from models import Conversation, Message
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,9 @@ async def create_conversation(user_id: str) -> str:
         raise
 
 
-async def get_conversation_messages(conversation_id: str, limit: int = 20) -> List[dict]:
+async def get_conversation_messages(
+    conversation_id: str, limit: int = 20
+) -> List[dict]:
     """Retrieve message history for a conversation.
 
     Args:
@@ -64,7 +67,7 @@ async def get_conversation_messages(conversation_id: str, limit: int = 20) -> Li
                 {
                     "role": msg.role,
                     "content": msg.content,
-                    "created_at": msg.created_at.isoformat()
+                    "created_at": msg.created_at.isoformat(),
                 }
                 for msg in messages
             ]
@@ -73,7 +76,9 @@ async def get_conversation_messages(conversation_id: str, limit: int = 20) -> Li
         raise
 
 
-async def store_message(conversation_id: str, user_id: str, role: str, content: str) -> None:
+async def store_message(
+    conversation_id: str, user_id: str, role: str, content: str
+) -> None:
     """Store a user or assistant message in the database.
 
     Args:
@@ -91,7 +96,7 @@ async def store_message(conversation_id: str, user_id: str, role: str, content: 
                 conversation_id=conversation_id,
                 user_id=user_id,
                 role=role,
-                content=content
+                content=content,
             )
             session.add(message)
             session.commit()
@@ -102,9 +107,7 @@ async def store_message(conversation_id: str, user_id: str, role: str, content: 
 
 
 async def process_message(
-    user_id: str,
-    conversation_id: Optional[str],
-    message: str
+    user_id: str, conversation_id: Optional[str], message: str
 ) -> dict:
     """Process a user message through the agent.
 
@@ -127,8 +130,7 @@ async def process_message(
 
         # Build input messages for the agent
         input_messages = [
-            {"role": msg["role"], "content": msg["content"]}
-            for msg in messages
+            {"role": msg["role"], "content": msg["content"]} for msg in messages
         ]
         input_messages.append({"role": "user", "content": message})
 
@@ -139,26 +141,26 @@ async def process_message(
         context = AgentContext(
             user_id=user_id,
             conversation_id=conversation_id,
-            mcp_base_url=os.getenv("MCP_BASE_URL", "http://localhost:8000")
+            mcp_base_url=os.getenv("MCP_BASE_URL", "http://localhost:8000"),
         )
 
         # Run agent
         logger.info(f"Running agent for user {user_id}, conversation {conversation_id}")
         result = await Runner.run(
-            task_manager_agent,
-            input=input_messages,
-            context=context
+            task_manager_agent, input=input_messages, context=context
         )
 
         # Extract tool calls from result
         tool_calls = []
-        if hasattr(result, 'tool_calls'):
+        if hasattr(result, "tool_calls"):
             for tool_call in result.tool_calls:
-                tool_calls.append({
-                    "tool_name": tool_call.name,
-                    "arguments": tool_call.arguments,
-                    "result": str(tool_call.output) if tool_call.output else None
-                })
+                tool_calls.append(
+                    {
+                        "tool_name": tool_call.name,
+                        "arguments": tool_call.arguments,
+                        "result": str(tool_call.output) if tool_call.output else None,
+                    }
+                )
 
         # Store assistant response
         await store_message(conversation_id, user_id, "assistant", result.final_output)
@@ -179,7 +181,7 @@ async def process_message(
         return {
             "conversation_id": conversation_id,
             "response": result.final_output,
-            "tool_calls": tool_calls
+            "tool_calls": tool_calls,
         }
     except Exception as e:
         logger.error(f"Error processing message: {e}")

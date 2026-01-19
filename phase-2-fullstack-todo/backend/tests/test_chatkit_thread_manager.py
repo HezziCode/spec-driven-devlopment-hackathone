@@ -1,9 +1,9 @@
 """Tests for ThreadManager class."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
-from datetime import datetime
+
+import pytest
 
 
 class TestThreadManager:
@@ -126,8 +126,9 @@ class TestChatAgent:
 
     def test_chat_agent_returns_agent(self):
         """Test create_chat_agent returns an Agent."""
-        from chatkit.agent import create_chat_agent
         from agents import Agent
+
+        from chatkit.agent import create_chat_agent
 
         agent = create_chat_agent([])
         assert isinstance(agent, Agent)

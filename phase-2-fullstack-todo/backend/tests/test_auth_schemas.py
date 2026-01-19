@@ -5,10 +5,11 @@ Tests validation rules for SignupRequest, LoginRequest, UserResponse, and AuthRe
 Follows TDD RED phase - these tests will fail until schemas are implemented.
 """
 
+from datetime import datetime
+from uuid import uuid4
+
 import pytest
 from pydantic import ValidationError
-from uuid import uuid4
-from datetime import datetime
 
 
 def test_signup_request_valid():
@@ -16,9 +17,7 @@ def test_signup_request_valid():
     from schemas.auth import SignupRequest
 
     request = SignupRequest(
-        username="testuser",
-        email="test@example.com",
-        password="SecurePass123"
+        username="testuser", email="test@example.com", password="SecurePass123"
     )
     assert request.username == "testuser"
     assert request.email == "test@example.com"
@@ -33,7 +32,10 @@ def test_signup_request_short_username():
         SignupRequest(username="ab", email="test@example.com", password="SecurePass123")
 
     errors = exc_info.value.errors()
-    assert any("min_length" in str(error).lower() or "at least 3" in str(error).lower() for error in errors)
+    assert any(
+        "min_length" in str(error).lower() or "at least 3" in str(error).lower()
+        for error in errors
+    )
 
 
 def test_signup_request_long_username():
@@ -42,10 +44,15 @@ def test_signup_request_long_username():
 
     long_username = "a" * 51
     with pytest.raises(ValidationError) as exc_info:
-        SignupRequest(username=long_username, email="test@example.com", password="SecurePass123")
+        SignupRequest(
+            username=long_username, email="test@example.com", password="SecurePass123"
+        )
 
     errors = exc_info.value.errors()
-    assert any("max_length" in str(error).lower() or "at most 50" in str(error).lower() for error in errors)
+    assert any(
+        "max_length" in str(error).lower() or "at most 50" in str(error).lower()
+        for error in errors
+    )
 
 
 def test_signup_request_invalid_email():
@@ -67,17 +74,17 @@ def test_signup_request_short_password():
         SignupRequest(username="testuser", email="test@example.com", password="Short1")
 
     errors = exc_info.value.errors()
-    assert any("min_length" in str(error).lower() or "at least 8" in str(error).lower() for error in errors)
+    assert any(
+        "min_length" in str(error).lower() or "at least 8" in str(error).lower()
+        for error in errors
+    )
 
 
 def test_login_request_valid():
     """Test creating LoginRequest with valid email and password."""
     from schemas.auth import LoginRequest
 
-    request = LoginRequest(
-        email="test@example.com",
-        password="SecurePass123"
-    )
+    request = LoginRequest(email="test@example.com", password="SecurePass123")
     assert request.email == "test@example.com"
     assert request.password == "SecurePass123"
 
@@ -102,7 +109,7 @@ def test_user_response_excludes_password_hash():
         id=user_id,
         username="testuser",
         email="test@example.com",
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
     )
 
     # Verify password_hash is not in model dump
@@ -121,12 +128,11 @@ def test_auth_response_structure():
         id=user_id,
         username="testuser",
         email="test@example.com",
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
     )
 
     auth_response = AuthResponse(
-        user=user,
-        token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.token"
+        user=user, token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.token"
     )
 
     assert auth_response.user.username == "testuser"

@@ -1,7 +1,5 @@
 """Tests for chat endpoint."""
 
-import pytest
-
 
 # TODO: Add tests for:
 # - chat endpoint creating task
