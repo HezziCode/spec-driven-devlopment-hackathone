@@ -7,14 +7,14 @@ and validating user_id on all operations.
 """
 
 import logging
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
 
-from sqlmodel import select, or_
+from sqlmodel import or_, select
 
-from models import Task
-from mcp_server.server import mcp, get_sync_session
 from mcp_server.schemas import TaskStatus
+from mcp_server.server import get_sync_session, mcp
+from models import Task
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -45,13 +45,14 @@ def _task_to_detail(task: Task) -> dict:
 # Tool Implementations
 # =============================================================================
 
+
 @mcp.tool()
 def create_task(
     user_id: str,
     title: str,
     description: str = "",
     source: str = "manual",
-    thread_id: str = None
+    thread_id: str = None,
 ) -> dict:
     """
     Create a new task for the user.
@@ -73,7 +74,7 @@ def create_task(
         return {
             "error": "Invalid user_id format",
             "code": "VALIDATION_ERROR",
-            "task_id": None
+            "task_id": None,
         }
 
     # Validate title
@@ -81,14 +82,14 @@ def create_task(
         return {
             "error": "Title is required and cannot be empty",
             "code": "VALIDATION_ERROR",
-            "task_id": None
+            "task_id": None,
         }
 
     if len(title) > 200:
         return {
             "error": "Title must be 200 characters or less",
             "code": "VALIDATION_ERROR",
-            "task_id": None
+            "task_id": None,
         }
 
     # Validate description
@@ -96,7 +97,7 @@ def create_task(
         return {
             "error": "Description must be 2000 characters or less",
             "code": "VALIDATION_ERROR",
-            "task_id": None
+            "task_id": None,
         }
 
     # Validate source
@@ -104,7 +105,7 @@ def create_task(
         return {
             "error": "Source must be 'manual' or 'chat'",
             "code": "VALIDATION_ERROR",
-            "task_id": None
+            "task_id": None,
         }
 
     session = get_sync_session()
@@ -125,18 +126,14 @@ def create_task(
 
         logger.info(f"Created task {task.id} for user {user_id}")
 
-        return {
-            "task_id": str(task.id),
-            "status": "created",
-            "title": task.title
-        }
+        return {"task_id": str(task.id), "status": "created", "title": task.title}
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to create task: {str(e)}")
         return {
             "error": f"Database error: {str(e)}",
             "code": "DATABASE_ERROR",
-            "task_id": None
+            "task_id": None,
         }
     finally:
         session.close()
@@ -161,7 +158,7 @@ def list_tasks(user_id: str, status: str = "all") -> dict:
         return {
             "error": "Invalid user_id format",
             "code": "VALIDATION_ERROR",
-            "task_id": None
+            "task_id": None,
         }
 
     # Validate status
@@ -171,7 +168,7 @@ def list_tasks(user_id: str, status: str = "all") -> dict:
         return {
             "error": f"Invalid status '{status}'. Must be: all, pending, or completed",
             "code": "VALIDATION_ERROR",
-            "task_id": None
+            "task_id": None,
         }
 
     session = get_sync_session()
@@ -189,16 +186,13 @@ def list_tasks(user_id: str, status: str = "all") -> dict:
 
         tasks = session.exec(query).all()
 
-        return {
-            "tasks": [_task_to_detail(task) for task in tasks],
-            "total": len(tasks)
-        }
+        return {"tasks": [_task_to_detail(task) for task in tasks], "total": len(tasks)}
     except Exception as e:
         logger.error(f"Failed to list tasks: {str(e)}")
         return {
             "error": f"Database error: {str(e)}",
             "code": "DATABASE_ERROR",
-            "task_id": None
+            "task_id": None,
         }
     finally:
         session.close()
@@ -226,7 +220,7 @@ def mark_complete(user_id: str, task_id: str) -> dict:
         return {
             "error": "Invalid user_id format",
             "code": "VALIDATION_ERROR",
-            "task_id": task_id
+            "task_id": task_id,
         }
 
     task_uuid = _validate_uuid(task_id, "task_id")
@@ -234,25 +228,18 @@ def mark_complete(user_id: str, task_id: str) -> dict:
         return {
             "error": "Invalid task_id format",
             "code": "VALIDATION_ERROR",
-            "task_id": task_id
+            "task_id": task_id,
         }
 
     session = get_sync_session()
     try:
         # Find task with user isolation
         task = session.exec(
-            select(Task).where(
-                Task.id == task_uuid,
-                Task.user_id == user_uuid
-            )
+            select(Task).where(Task.id == task_uuid, Task.user_id == user_uuid)
         ).first()
 
         if not task:
-            return {
-                "error": "Task not found",
-                "code": "NOT_FOUND",
-                "task_id": task_id
-            }
+            return {"error": "Task not found", "code": "NOT_FOUND", "task_id": task_id}
 
         # Mark as complete (idempotent)
         task.completed = True
@@ -262,18 +249,14 @@ def mark_complete(user_id: str, task_id: str) -> dict:
 
         logger.info(f"Marked task {task_id} as complete for user {user_id}")
 
-        return {
-            "task_id": str(task.id),
-            "status": "completed",
-            "title": task.title
-        }
+        return {"task_id": str(task.id), "status": "completed", "title": task.title}
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to mark task complete: {str(e)}")
         return {
             "error": f"Database error: {str(e)}",
             "code": "DATABASE_ERROR",
-            "task_id": task_id
+            "task_id": task_id,
         }
     finally:
         session.close()
@@ -281,10 +264,7 @@ def mark_complete(user_id: str, task_id: str) -> dict:
 
 @mcp.tool()
 def update_task(
-    user_id: str,
-    task_id: str,
-    title: str | None = None,
-    description: str | None = None
+    user_id: str, task_id: str, title: str | None = None, description: str | None = None
 ) -> dict:
     """
     Update task title and/or description.
@@ -306,7 +286,7 @@ def update_task(
         return {
             "error": "At least one of title or description must be provided",
             "code": "VALIDATION_ERROR",
-            "task_id": task_id
+            "task_id": task_id,
         }
 
     # Validate UUIDs
@@ -315,7 +295,7 @@ def update_task(
         return {
             "error": "Invalid user_id format",
             "code": "VALIDATION_ERROR",
-            "task_id": task_id
+            "task_id": task_id,
         }
 
     task_uuid = _validate_uuid(task_id, "task_id")
@@ -323,7 +303,7 @@ def update_task(
         return {
             "error": "Invalid task_id format",
             "code": "VALIDATION_ERROR",
-            "task_id": task_id
+            "task_id": task_id,
         }
 
     # Validate title if provided
@@ -332,13 +312,13 @@ def update_task(
             return {
                 "error": "Title cannot be empty",
                 "code": "VALIDATION_ERROR",
-                "task_id": task_id
+                "task_id": task_id,
             }
         if len(title) > 200:
             return {
                 "error": "Title must be 200 characters or less",
                 "code": "VALIDATION_ERROR",
-                "task_id": task_id
+                "task_id": task_id,
             }
 
     # Validate description if provided
@@ -346,25 +326,18 @@ def update_task(
         return {
             "error": "Description must be 2000 characters or less",
             "code": "VALIDATION_ERROR",
-            "task_id": task_id
+            "task_id": task_id,
         }
 
     session = get_sync_session()
     try:
         # Find task with user isolation
         task = session.exec(
-            select(Task).where(
-                Task.id == task_uuid,
-                Task.user_id == user_uuid
-            )
+            select(Task).where(Task.id == task_uuid, Task.user_id == user_uuid)
         ).first()
 
         if not task:
-            return {
-                "error": "Task not found",
-                "code": "NOT_FOUND",
-                "task_id": task_id
-            }
+            return {"error": "Task not found", "code": "NOT_FOUND", "task_id": task_id}
 
         # Update fields
         if title is not None:
@@ -378,18 +351,14 @@ def update_task(
 
         logger.info(f"Updated task {task_id} for user {user_id}")
 
-        return {
-            "task_id": str(task.id),
-            "status": "updated",
-            "title": task.title
-        }
+        return {"task_id": str(task.id), "status": "updated", "title": task.title}
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to update task: {str(e)}")
         return {
             "error": f"Database error: {str(e)}",
             "code": "DATABASE_ERROR",
-            "task_id": task_id
+            "task_id": task_id,
         }
     finally:
         session.close()
@@ -416,7 +385,7 @@ def delete_task(user_id: str, task_id: str) -> dict:
         return {
             "error": "Invalid user_id format",
             "code": "VALIDATION_ERROR",
-            "task_id": task_id
+            "task_id": task_id,
         }
 
     task_uuid = _validate_uuid(task_id, "task_id")
@@ -424,25 +393,18 @@ def delete_task(user_id: str, task_id: str) -> dict:
         return {
             "error": "Invalid task_id format",
             "code": "VALIDATION_ERROR",
-            "task_id": task_id
+            "task_id": task_id,
         }
 
     session = get_sync_session()
     try:
         # Find task with user isolation
         task = session.exec(
-            select(Task).where(
-                Task.id == task_uuid,
-                Task.user_id == user_uuid
-            )
+            select(Task).where(Task.id == task_uuid, Task.user_id == user_uuid)
         ).first()
 
         if not task:
-            return {
-                "error": "Task not found",
-                "code": "NOT_FOUND",
-                "task_id": task_id
-            }
+            return {"error": "Task not found", "code": "NOT_FOUND", "task_id": task_id}
 
         # Store title before deletion
         title = task.title
@@ -453,18 +415,14 @@ def delete_task(user_id: str, task_id: str) -> dict:
 
         logger.info(f"Deleted task {task_id} for user {user_id}")
 
-        return {
-            "task_id": task_id,
-            "status": "deleted",
-            "title": title
-        }
+        return {"task_id": task_id, "status": "deleted", "title": title}
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to delete task: {str(e)}")
         return {
             "error": f"Database error: {str(e)}",
             "code": "DATABASE_ERROR",
-            "task_id": task_id
+            "task_id": task_id,
         }
     finally:
         session.close()
@@ -491,7 +449,7 @@ def search_tasks(user_id: str, query: str) -> dict:
         return {
             "error": "Invalid user_id format",
             "code": "VALIDATION_ERROR",
-            "task_id": None
+            "task_id": None,
         }
 
     # Validate query
@@ -499,14 +457,14 @@ def search_tasks(user_id: str, query: str) -> dict:
         return {
             "error": "Search query is required",
             "code": "VALIDATION_ERROR",
-            "task_id": None
+            "task_id": None,
         }
 
     if len(query) > 100:
         return {
             "error": "Search query must be 100 characters or less",
             "code": "VALIDATION_ERROR",
-            "task_id": None
+            "task_id": None,
         }
 
     session = get_sync_session()
@@ -516,25 +474,24 @@ def search_tasks(user_id: str, query: str) -> dict:
 
         # Search in title and description
         tasks = session.exec(
-            select(Task).where(
+            select(Task)
+            .where(
                 Task.user_id == user_uuid,
                 or_(
                     Task.title.ilike(search_pattern),
-                    Task.description.ilike(search_pattern)
-                )
-            ).order_by(Task.created_at.desc())
+                    Task.description.ilike(search_pattern),
+                ),
+            )
+            .order_by(Task.created_at.desc())
         ).all()
 
-        return {
-            "tasks": [_task_to_detail(task) for task in tasks],
-            "total": len(tasks)
-        }
+        return {"tasks": [_task_to_detail(task) for task in tasks], "total": len(tasks)}
     except Exception as e:
         logger.error(f"Failed to search tasks: {str(e)}")
         return {
             "error": f"Database error: {str(e)}",
             "code": "DATABASE_ERROR",
-            "task_id": None
+            "task_id": None,
         }
     finally:
         session.close()

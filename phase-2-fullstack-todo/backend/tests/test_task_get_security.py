@@ -8,24 +8,23 @@ This module tests security-critical behaviors:
 - Response timing consistency (prevent enumeration via timing attacks)
 """
 
-import pytest
 import time
 from uuid import uuid4
+
 from fastapi.testclient import TestClient
-from sqlmodel import Session, select
 
-from models import Task, TaskTag
-
+from models import Task
 
 # ============================================================================
 # Successful Retrieval Tests
 # ============================================================================
 
+
 def test_get_task_success_with_tags(
     client: TestClient,
     auth_headers_user_a: dict,
     test_user_a,
-    test_task_with_tags: Task
+    test_task_with_tags: Task,
 ):
     """
     Test successful task retrieval with tags.
@@ -38,11 +37,12 @@ def test_get_task_success_with_tags(
     task_id = test_task_with_tags.id
 
     response = client.get(
-        f"/users/{user.id}/tasks/{task_id}",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/{task_id}", headers=auth_headers_user_a
     )
 
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.json()}"
+    assert response.status_code == 200, (
+        f"Expected 200, got {response.status_code}: {response.json()}"
+    )
 
     data = response.json()
     assert data["id"] == str(task_id)
@@ -55,10 +55,7 @@ def test_get_task_success_with_tags(
 
 
 def test_get_task_with_no_tags(
-    client: TestClient,
-    auth_headers_user_a: dict,
-    test_user_a,
-    test_task_no_tags: Task
+    client: TestClient, auth_headers_user_a: dict, test_user_a, test_task_no_tags: Task
 ):
     """
     Test retrieval of task with no tags.
@@ -71,8 +68,7 @@ def test_get_task_with_no_tags(
     task_id = test_task_no_tags.id
 
     response = client.get(
-        f"/users/{user.id}/tasks/{task_id}",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/{task_id}", headers=auth_headers_user_a
     )
 
     assert response.status_code == 200
@@ -84,7 +80,7 @@ def test_get_task_response_schema(
     client: TestClient,
     auth_headers_user_a: dict,
     test_user_a,
-    test_task_with_tags: Task
+    test_task_with_tags: Task,
 ):
     """
     Test that response matches TaskResponse schema exactly.
@@ -97,8 +93,7 @@ def test_get_task_response_schema(
     task_id = test_task_with_tags.id
 
     response = client.get(
-        f"/users/{user.id}/tasks/{task_id}",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/{task_id}", headers=auth_headers_user_a
     )
 
     assert response.status_code == 200
@@ -106,8 +101,15 @@ def test_get_task_response_schema(
 
     # Verify all required fields are present
     required_fields = [
-        "id", "user_id", "title", "description", "completed",
-        "priority", "tags", "created_at", "updated_at"
+        "id",
+        "user_id",
+        "title",
+        "description",
+        "completed",
+        "priority",
+        "tags",
+        "created_at",
+        "updated_at",
     ]
     for field in required_fields:
         assert field in data, f"Missing required field: {field}"
@@ -127,10 +129,9 @@ def test_get_task_response_schema(
 # Information Disclosure Prevention Tests (CRITICAL SECURITY)
 # ============================================================================
 
+
 def test_get_task_non_existent_returns_404(
-    client: TestClient,
-    auth_headers_user_a: dict,
-    test_user_a
+    client: TestClient, auth_headers_user_a: dict, test_user_a
 ):
     """
     Test non-existent task returns 404.
@@ -143,8 +144,7 @@ def test_get_task_non_existent_returns_404(
     non_existent_id = uuid4()
 
     response = client.get(
-        f"/users/{user.id}/tasks/{non_existent_id}",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/{non_existent_id}", headers=auth_headers_user_a
     )
 
     assert response.status_code == 404
@@ -157,7 +157,7 @@ def test_get_task_cross_user_access_returns_404_not_403(
     auth_headers_user_b: dict,
     test_user_a,
     test_user_b,
-    test_task_user_b: Task
+    test_task_user_b: Task,
 ):
     """
     CRITICAL SECURITY TEST: Cross-user access returns 404 (NOT 403).
@@ -177,32 +177,30 @@ def test_get_task_cross_user_access_returns_404_not_403(
 
     # User A attempts to access User B's task
     response_a = client.get(
-        f"/users/{user_a.id}/tasks/{task_b_id}",
-        headers=auth_headers_user_a
+        f"/users/{user_a.id}/tasks/{task_b_id}", headers=auth_headers_user_a
     )
 
     # CRITICAL: Must be 404, not 403
-    assert response_a.status_code == 404, \
-        f"SECURITY VIOLATION: Cross-user access must return 404 (not 403) to prevent enumeration. " \
+    assert response_a.status_code == 404, (
+        f"SECURITY VIOLATION: Cross-user access must return 404 (not 403) to prevent enumeration. "
         f"Got {response_a.status_code}: {response_a.json()}"
+    )
 
-    assert response_a.json()["detail"] == "Task not found", \
+    assert response_a.json()["detail"] == "Task not found", (
         "Error message should not distinguish between non-existent and unauthorized"
+    )
 
     # Verify User B can still access their own task (sanity check)
     response_b = client.get(
-        f"/users/{user_b.id}/tasks/{task_b_id}",
-        headers=auth_headers_user_b
+        f"/users/{user_b.id}/tasks/{task_b_id}", headers=auth_headers_user_b
     )
-    assert response_b.status_code == 200, \
+    assert response_b.status_code == 200, (
         "User B should still be able to access their own task"
+    )
 
 
 def test_get_task_response_timing_consistent(
-    client: TestClient,
-    auth_headers_user_a: dict,
-    test_user_a,
-    test_task_user_b: Task
+    client: TestClient, auth_headers_user_a: dict, test_user_a, test_task_user_b: Task
 ):
     """
     Test response timing consistency to prevent timing attacks.
@@ -224,8 +222,7 @@ def test_get_task_response_timing_consistent(
     for _ in range(10):
         start = time.perf_counter()
         response1 = client.get(
-            f"/users/{user_a.id}/tasks/{non_existent_id}",
-            headers=auth_headers_user_a
+            f"/users/{user_a.id}/tasks/{non_existent_id}", headers=auth_headers_user_a
         )
         latency1 = time.perf_counter() - start
         latencies.append(("non_existent", latency1))
@@ -235,8 +232,7 @@ def test_get_task_response_timing_consistent(
     for _ in range(10):
         start = time.perf_counter()
         response2 = client.get(
-            f"/users/{user_a.id}/tasks/{user_b_task_id}",
-            headers=auth_headers_user_a
+            f"/users/{user_a.id}/tasks/{user_b_task_id}", headers=auth_headers_user_a
         )
         latency2 = time.perf_counter() - start
         latencies.append(("other_user", latency2))
@@ -248,19 +244,18 @@ def test_get_task_response_timing_consistent(
 
     # Times should be similar (within 50ms)
     time_diff = abs(non_existent_avg - other_user_avg)
-    assert time_diff < 0.05, \
-        f"Timing attack risk: Average response time difference {time_diff*1000:.2f}ms exceeds 50ms threshold"
+    assert time_diff < 0.05, (
+        f"Timing attack risk: Average response time difference {time_diff * 1000:.2f}ms exceeds 50ms threshold"
+    )
 
 
 # ============================================================================
 # Authorization Tests
 # ============================================================================
 
+
 def test_get_task_path_user_mismatch_returns_403(
-    client: TestClient,
-    auth_headers_user_a: dict,
-    test_user_a,
-    test_user_b
+    client: TestClient, auth_headers_user_a: dict, test_user_a, test_user_b
 ):
     """
     Test path user_id mismatch returns 403 before DB query.
@@ -276,8 +271,7 @@ def test_get_task_path_user_mismatch_returns_403(
     user_b, _, _ = test_user_b
 
     response = client.get(
-        f"/users/{user_b.id}/tasks/{uuid4()}",
-        headers=auth_headers_user_a
+        f"/users/{user_b.id}/tasks/{uuid4()}", headers=auth_headers_user_a
     )
 
     assert response.status_code == 403
@@ -288,10 +282,9 @@ def test_get_task_path_user_mismatch_returns_403(
 # Authentication Tests
 # ============================================================================
 
+
 def test_get_task_no_token_returns_401(
-    client: TestClient,
-    test_user_a,
-    test_task_user_a: Task
+    client: TestClient, test_user_a, test_task_user_a: Task
 ):
     """
     Test missing JWT token returns 401.
@@ -309,13 +302,14 @@ def test_get_task_no_token_returns_401(
     )
 
     assert response.status_code == 401
-    assert "Authorization" in response.json()["error"] or "MISSING_TOKEN" in response.json()["code"]
+    assert (
+        "Authorization" in response.json()["error"]
+        or "MISSING_TOKEN" in response.json()["code"]
+    )
 
 
 def test_get_task_invalid_token_returns_401(
-    client: TestClient,
-    test_user_a,
-    test_task_user_a: Task
+    client: TestClient, test_user_a, test_task_user_a: Task
 ):
     """
     Test invalid JWT token returns 401.
@@ -329,19 +323,18 @@ def test_get_task_invalid_token_returns_401(
 
     response = client.get(
         f"/users/{user.id}/tasks/{task_id}",
-        headers={"Authorization": "Bearer invalid-token"}
+        headers={"Authorization": "Bearer invalid-token"},
     )
 
     assert response.status_code == 401
     json_response = response.json()
-    assert "Invalid" in json_response.get("error", "") or "INVALID" in json_response.get("code", "")
+    assert "Invalid" in json_response.get(
+        "error", ""
+    ) or "INVALID" in json_response.get("code", "")
 
 
 def test_get_task_expired_token_returns_401(
-    client: TestClient,
-    test_user_a,
-    test_task_user_a: Task,
-    generate_expired_jwt
+    client: TestClient, test_user_a, test_task_user_a: Task, generate_expired_jwt
 ):
     """
     Test expired JWT token returns 401.
@@ -356,22 +349,23 @@ def test_get_task_expired_token_returns_401(
 
     response = client.get(
         f"/users/{user.id}/tasks/{task_id}",
-        headers={"Authorization": f"Bearer {expired_token}"}
+        headers={"Authorization": f"Bearer {expired_token}"},
     )
 
     assert response.status_code == 401
     json_response = response.json()
-    assert "expired" in json_response.get("error", "").lower() or "EXPIRED" in json_response.get("code", "")
+    assert "expired" in json_response.get(
+        "error", ""
+    ).lower() or "EXPIRED" in json_response.get("code", "")
 
 
 # ============================================================================
 # Input Validation Tests
 # ============================================================================
 
+
 def test_get_task_invalid_uuid_format(
-    client: TestClient,
-    auth_headers_user_a: dict,
-    test_user_a
+    client: TestClient, auth_headers_user_a: dict, test_user_a
 ):
     """
     Test invalid UUID format returns 422.
@@ -383,8 +377,7 @@ def test_get_task_invalid_uuid_format(
     user, _, _ = test_user_a
 
     response = client.get(
-        f"/users/{user.id}/tasks/not-a-uuid",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/not-a-uuid", headers=auth_headers_user_a
     )
 
     assert response.status_code == 422

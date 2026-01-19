@@ -1,15 +1,27 @@
+from typing import Optional
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
-from typing import List, Optional
-from uuid import UUID
 
 from db import get_session
 from middleware.auth_middleware import get_user_id_from_token
-from services.task_service import (
-    create_task, get_user_tasks, get_task_by_id,
-    update_task, delete_task, validate_task_data
+from schemas.task import (
+    PriorityEnum,
+    SortEnum,
+    TaskCreate,
+    TaskListResponse,
+    TaskResponse,
+    TaskUpdate,
 )
-from schemas.task import TaskCreate, TaskUpdate, TaskResponse, TaskListResponse, PriorityEnum, SortEnum
+from services.task_service import (
+    create_task,
+    delete_task,
+    get_task_by_id,
+    get_user_tasks,
+    update_task,
+    validate_task_data,
+)
 
 router = APIRouter(prefix="/users/{user_id}", tags=["tasks"])
 
@@ -19,7 +31,7 @@ async def create_user_task(
     user_id: UUID,
     task_data: TaskCreate,
     current_user_id: str = Depends(get_user_id_from_token),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
     """
     Create a new task for the authenticated user.
@@ -27,29 +39,22 @@ async def create_user_task(
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
         raise HTTPException(
-            status_code=403,
-            detail="Not authorized to create tasks for this user"
+            status_code=403, detail="Not authorized to create tasks for this user"
         )
 
     # Validate task data
     validation_errors = validate_task_data(task_data)
     if validation_errors:
-        raise HTTPException(
-            status_code=422,
-            detail={"errors": validation_errors}
-        )
+        raise HTTPException(status_code=422, detail={"errors": validation_errors})
 
     try:
         task = create_task(session, task_data, user_id)
         # Convert TaskTag objects to tag name strings
         task_dict = task.model_dump()
-        task_dict['tags'] = [tag.tag_name for tag in task.tags] if task.tags else []
+        task_dict["tags"] = [tag.tag_name for tag in task.tags] if task.tags else []
         return TaskResponse(**task_dict)
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error creating task: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error creating task: {str(e)}")
 
 
 @router.get("/tasks", response_model=TaskListResponse)
@@ -61,9 +66,11 @@ async def get_user_tasks_list(
     priority: Optional[PriorityEnum] = Query(None, description="Filter by priority"),
     tag: Optional[str] = Query(None, description="Filter by tag name"),
     search: Optional[str] = Query(None, description="Search in title and description"),
-    sort: SortEnum = Query(SortEnum.created, description="Sort by created/title/priority/updated"),
+    sort: SortEnum = Query(
+        SortEnum.created, description="Sort by created/title/priority/updated"
+    ),
     limit: int = Query(20, ge=1, le=100, description="Number of tasks to return"),
-    offset: int = Query(0, ge=0, description="Number of tasks to skip")
+    offset: int = Query(0, ge=0, description="Number of tasks to skip"),
 ):
     """
     Get all tasks for the authenticated user with filtering, search, sorting, and pagination.
@@ -71,31 +78,37 @@ async def get_user_tasks_list(
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
         raise HTTPException(
-            status_code=403,
-            detail="Not authorized to view tasks for this user"
+            status_code=403, detail="Not authorized to view tasks for this user"
         )
 
     try:
         tasks, total = get_user_tasks(
-            session, user_id, completed, priority, tag, search, sort.value, limit, offset
+            session,
+            user_id,
+            completed,
+            priority,
+            tag,
+            search,
+            sort.value,
+            limit,
+            offset,
         )
 
         # Convert tasks to response format with string tags
         task_responses = []
         for task in tasks:
             task_dict = task.model_dump()
-            task_dict['tags'] = [tag.tag_name for tag in task.tags] if task.tags else []
+            task_dict["tags"] = [tag.tag_name for tag in task.tags] if task.tags else []
             task_responses.append(TaskResponse(**task_dict))
 
         # Calculate page number
         page = (offset // limit) + 1 if limit > 0 else 1
 
-        return TaskListResponse(tasks=task_responses, total=total, page=page, limit=limit)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error retrieving tasks: {str(e)}"
+        return TaskListResponse(
+            tasks=task_responses, total=total, page=page, limit=limit
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving tasks: {str(e)}")
 
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
@@ -103,7 +116,7 @@ async def get_user_task(
     user_id: UUID,
     task_id: UUID,
     current_user_id: str = Depends(get_user_id_from_token),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
     """
     Get a specific task for the authenticated user.
@@ -111,28 +124,21 @@ async def get_user_task(
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
         raise HTTPException(
-            status_code=403,
-            detail="Not authorized to view tasks for this user"
+            status_code=403, detail="Not authorized to view tasks for this user"
         )
 
     try:
         task = get_task_by_id(session, task_id, user_id)
         if not task:
-            raise HTTPException(
-                status_code=404,
-                detail="Task not found"
-            )
+            raise HTTPException(status_code=404, detail="Task not found")
         # Convert TaskTag objects to tag name strings
         task_dict = task.model_dump()
-        task_dict['tags'] = [tag.tag_name for tag in task.tags] if task.tags else []
+        task_dict["tags"] = [tag.tag_name for tag in task.tags] if task.tags else []
         return TaskResponse(**task_dict)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error retrieving task: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error retrieving task: {str(e)}")
 
 
 @router.put("/tasks/{task_id}", response_model=TaskResponse)
@@ -141,7 +147,7 @@ async def update_user_task(
     task_id: UUID,
     task_data: TaskUpdate,
     current_user_id: str = Depends(get_user_id_from_token),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
     """
     Update an existing task for the authenticated user.
@@ -149,38 +155,34 @@ async def update_user_task(
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
         raise HTTPException(
-            status_code=403,
-            detail="Not authorized to update tasks for this user"
+            status_code=403, detail="Not authorized to update tasks for this user"
         )
 
     try:
         task = update_task(session, task_id, task_data, user_id)
         if not task:
-            raise HTTPException(
-                status_code=404,
-                detail="Task not found"
-            )
+            raise HTTPException(status_code=404, detail="Task not found")
 
         # Refresh to ensure tags are loaded from database
         session.refresh(task)
 
         # Build response dict manually to avoid SQLAlchemy state issues
         task_dict = {
-            'id': task.id,
-            'user_id': task.user_id,
-            'title': task.title,
-            'description': task.description,
-            'completed': task.completed,
-            'priority': task.priority,
-            'created_at': task.created_at,
-            'updated_at': task.updated_at,
-            'tags': []
+            "id": task.id,
+            "user_id": task.user_id,
+            "title": task.title,
+            "description": task.description,
+            "completed": task.completed,
+            "priority": task.priority,
+            "created_at": task.created_at,
+            "updated_at": task.updated_at,
+            "tags": [],
         }
 
         # Safely convert TaskTag objects to strings
         if task.tags:
-            task_dict['tags'] = [
-                tag.tag_name if hasattr(tag, 'tag_name') else str(tag)
+            task_dict["tags"] = [
+                tag.tag_name if hasattr(tag, "tag_name") else str(tag)
                 for tag in task.tags
             ]
 
@@ -188,10 +190,7 @@ async def update_user_task(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error updating task: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error updating task: {str(e)}")
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskResponse)
@@ -200,7 +199,7 @@ async def partial_update_user_task(
     task_id: UUID,
     task_data: TaskUpdate,
     current_user_id: str = Depends(get_user_id_from_token),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
     """
     Partially update an existing task for the authenticated user.
@@ -208,38 +207,34 @@ async def partial_update_user_task(
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
         raise HTTPException(
-            status_code=403,
-            detail="Not authorized to update tasks for this user"
+            status_code=403, detail="Not authorized to update tasks for this user"
         )
 
     try:
         task = update_task(session, task_id, task_data, user_id)
         if not task:
-            raise HTTPException(
-                status_code=404,
-                detail="Task not found"
-            )
+            raise HTTPException(status_code=404, detail="Task not found")
 
         # Refresh to ensure tags are loaded from database
         session.refresh(task)
 
         # Build response dict manually to avoid SQLAlchemy state issues
         task_dict = {
-            'id': task.id,
-            'user_id': task.user_id,
-            'title': task.title,
-            'description': task.description,
-            'completed': task.completed,
-            'priority': task.priority,
-            'created_at': task.created_at,
-            'updated_at': task.updated_at,
-            'tags': []
+            "id": task.id,
+            "user_id": task.user_id,
+            "title": task.title,
+            "description": task.description,
+            "completed": task.completed,
+            "priority": task.priority,
+            "created_at": task.created_at,
+            "updated_at": task.updated_at,
+            "tags": [],
         }
 
         # Safely convert TaskTag objects to strings
         if task.tags:
-            task_dict['tags'] = [
-                tag.tag_name if hasattr(tag, 'tag_name') else str(tag)
+            task_dict["tags"] = [
+                tag.tag_name if hasattr(tag, "tag_name") else str(tag)
                 for tag in task.tags
             ]
 
@@ -247,10 +242,7 @@ async def partial_update_user_task(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error updating task: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error updating task: {str(e)}")
 
 
 @router.delete("/tasks/{task_id}")
@@ -258,7 +250,7 @@ async def delete_user_task(
     user_id: UUID,
     task_id: UUID,
     current_user_id: str = Depends(get_user_id_from_token),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
     """
     Delete a specific task for the authenticated user.
@@ -266,22 +258,15 @@ async def delete_user_task(
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
         raise HTTPException(
-            status_code=403,
-            detail="Not authorized to delete tasks for this user"
+            status_code=403, detail="Not authorized to delete tasks for this user"
         )
 
     try:
         success = delete_task(session, task_id, user_id)
         if not success:
-            raise HTTPException(
-                status_code=404,
-                detail="Task not found"
-            )
+            raise HTTPException(status_code=404, detail="Task not found")
         return {"message": "Task deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error deleting task: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error deleting task: {str(e)}")

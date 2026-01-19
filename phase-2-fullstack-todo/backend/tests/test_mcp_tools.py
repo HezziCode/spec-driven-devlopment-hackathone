@@ -5,23 +5,22 @@ Tests all 6 MCP tools with success, error, and edge case scenarios.
 Ensures user isolation and proper validation.
 """
 
-import pytest
-from uuid import uuid4
-from datetime import datetime
-
-from sqlmodel import Session, select
-
 # Skip database connection for schema-only tests
 import sys
-sys.path.insert(0, '.')
+from uuid import uuid4
 
-from models import Task, User
+import pytest
+from sqlmodel import Session
+
+sys.path.insert(0, ".")
+
 from mcp_server.schemas import TaskStatus
-
+from models import Task, User
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def test_user_id():
@@ -45,6 +44,7 @@ def test_task_id():
 # Helper Functions for Testing
 # =============================================================================
 
+
 def create_test_user(session: Session, user_id: str = None) -> User:
     """Create a test user in the database."""
     user = User(
@@ -52,7 +52,7 @@ def create_test_user(session: Session, user_id: str = None) -> User:
         username=f"testuser_{uuid4().hex[:8]}",
         email=f"test_{uuid4().hex[:8]}@example.com",
         password_hash="test_hash",
-        auth_provider="local"
+        auth_provider="local",
     )
     session.add(user)
     session.commit()
@@ -65,7 +65,7 @@ def create_test_task(
     user_id: str,
     title: str = "Test Task",
     description: str = None,
-    completed: bool = False
+    completed: bool = False,
 ) -> Task:
     """Create a test task in the database."""
     task = Task(
@@ -73,7 +73,7 @@ def create_test_task(
         title=title,
         description=description,
         completed=completed,
-        priority="medium"
+        priority="medium",
     )
     session.add(task)
     session.commit()
@@ -84,6 +84,7 @@ def create_test_task(
 # =============================================================================
 # Schema Tests
 # =============================================================================
+
 
 class TestSchemas:
     """Tests for Pydantic schemas."""
@@ -99,9 +100,7 @@ class TestSchemas:
         from mcp_server.schemas import CreateTaskInput
 
         input_data = CreateTaskInput(
-            user_id=str(uuid4()),
-            title="Test Task",
-            description="Test description"
+            user_id=str(uuid4()), title="Test Task", description="Test description"
         )
         assert input_data.title == "Test Task"
         assert input_data.description == "Test description"
@@ -110,61 +109,51 @@ class TestSchemas:
         """Test CreateTaskInput without description."""
         from mcp_server.schemas import CreateTaskInput
 
-        input_data = CreateTaskInput(
-            user_id=str(uuid4()),
-            title="Test Task"
-        )
+        input_data = CreateTaskInput(user_id=str(uuid4()), title="Test Task")
         assert input_data.description == ""
 
     def test_create_task_input_title_too_long(self):
         """Test CreateTaskInput rejects title > 200 chars."""
-        from mcp_server.schemas import CreateTaskInput
         from pydantic import ValidationError
 
+        from mcp_server.schemas import CreateTaskInput
+
         with pytest.raises(ValidationError):
-            CreateTaskInput(
-                user_id=str(uuid4()),
-                title="x" * 201
-            )
+            CreateTaskInput(user_id=str(uuid4()), title="x" * 201)
 
     def test_update_task_input_requires_at_least_one_field(self):
         """Test UpdateTaskInput requires title or description."""
-        from mcp_server.schemas import UpdateTaskInput
         from pydantic import ValidationError
 
+        from mcp_server.schemas import UpdateTaskInput
+
         with pytest.raises(ValidationError):
-            UpdateTaskInput(
-                user_id=str(uuid4()),
-                task_id=str(uuid4())
-            )
+            UpdateTaskInput(user_id=str(uuid4()), task_id=str(uuid4()))
 
     def test_update_task_input_with_title_only(self):
         """Test UpdateTaskInput with title only."""
         from mcp_server.schemas import UpdateTaskInput
 
         input_data = UpdateTaskInput(
-            user_id=str(uuid4()),
-            task_id=str(uuid4()),
-            title="New Title"
+            user_id=str(uuid4()), task_id=str(uuid4()), title="New Title"
         )
         assert input_data.title == "New Title"
         assert input_data.description is None
 
     def test_search_tasks_input_query_too_long(self):
         """Test SearchTasksInput rejects query > 100 chars."""
-        from mcp_server.schemas import SearchTasksInput
         from pydantic import ValidationError
 
+        from mcp_server.schemas import SearchTasksInput
+
         with pytest.raises(ValidationError):
-            SearchTasksInput(
-                user_id=str(uuid4()),
-                query="x" * 101
-            )
+            SearchTasksInput(user_id=str(uuid4()), query="x" * 101)
 
 
 # =============================================================================
 # Tool Unit Tests (Mocked)
 # =============================================================================
+
 
 class TestCreateTaskTool:
     """Tests for create_task tool."""
@@ -173,10 +162,7 @@ class TestCreateTaskTool:
         """Test create_task with invalid user_id format."""
         from mcp_server.tools import create_task
 
-        result = create_task(
-            user_id="invalid-uuid",
-            title="Test Task"
-        )
+        result = create_task(user_id="invalid-uuid", title="Test Task")
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -184,10 +170,7 @@ class TestCreateTaskTool:
         """Test create_task with empty title."""
         from mcp_server.tools import create_task
 
-        result = create_task(
-            user_id=str(uuid4()),
-            title=""
-        )
+        result = create_task(user_id=str(uuid4()), title="")
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -195,10 +178,7 @@ class TestCreateTaskTool:
         """Test create_task with title > 200 chars."""
         from mcp_server.tools import create_task
 
-        result = create_task(
-            user_id=str(uuid4()),
-            title="x" * 201
-        )
+        result = create_task(user_id=str(uuid4()), title="x" * 201)
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -207,9 +187,7 @@ class TestCreateTaskTool:
         from mcp_server.tools import create_task
 
         result = create_task(
-            user_id=str(uuid4()),
-            title="Test Task",
-            description="x" * 2001
+            user_id=str(uuid4()), title="Test Task", description="x" * 2001
         )
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
@@ -222,10 +200,7 @@ class TestListTasksTool:
         """Test list_tasks with invalid user_id format."""
         from mcp_server.tools import list_tasks
 
-        result = list_tasks(
-            user_id="invalid-uuid",
-            status="all"
-        )
+        result = list_tasks(user_id="invalid-uuid", status="all")
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -233,10 +208,7 @@ class TestListTasksTool:
         """Test list_tasks with invalid status filter."""
         from mcp_server.tools import list_tasks
 
-        result = list_tasks(
-            user_id=str(uuid4()),
-            status="invalid"
-        )
+        result = list_tasks(user_id=str(uuid4()), status="invalid")
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -248,10 +220,7 @@ class TestMarkCompleteTool:
         """Test mark_complete with invalid user_id format."""
         from mcp_server.tools import mark_complete
 
-        result = mark_complete(
-            user_id="invalid-uuid",
-            task_id=str(uuid4())
-        )
+        result = mark_complete(user_id="invalid-uuid", task_id=str(uuid4()))
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -259,10 +228,7 @@ class TestMarkCompleteTool:
         """Test mark_complete with invalid task_id format."""
         from mcp_server.tools import mark_complete
 
-        result = mark_complete(
-            user_id=str(uuid4()),
-            task_id="invalid-uuid"
-        )
+        result = mark_complete(user_id=str(uuid4()), task_id="invalid-uuid")
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -274,10 +240,7 @@ class TestUpdateTaskTool:
         """Test update_task with neither title nor description."""
         from mcp_server.tools import update_task
 
-        result = update_task(
-            user_id=str(uuid4()),
-            task_id=str(uuid4())
-        )
+        result = update_task(user_id=str(uuid4()), task_id=str(uuid4()))
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -288,7 +251,7 @@ class TestUpdateTaskTool:
         result = update_task(
             user_id=str(uuid4()),
             task_id=str(uuid4()),
-            title="   "  # Whitespace only
+            title="   ",  # Whitespace only
         )
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
@@ -298,9 +261,7 @@ class TestUpdateTaskTool:
         from mcp_server.tools import update_task
 
         result = update_task(
-            user_id=str(uuid4()),
-            task_id=str(uuid4()),
-            title="x" * 201
+            user_id=str(uuid4()), task_id=str(uuid4()), title="x" * 201
         )
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
@@ -310,9 +271,7 @@ class TestUpdateTaskTool:
         from mcp_server.tools import update_task
 
         result = update_task(
-            user_id=str(uuid4()),
-            task_id=str(uuid4()),
-            description="x" * 2001
+            user_id=str(uuid4()), task_id=str(uuid4()), description="x" * 2001
         )
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
@@ -325,10 +284,7 @@ class TestDeleteTaskTool:
         """Test delete_task with invalid user_id format."""
         from mcp_server.tools import delete_task
 
-        result = delete_task(
-            user_id="invalid-uuid",
-            task_id=str(uuid4())
-        )
+        result = delete_task(user_id="invalid-uuid", task_id=str(uuid4()))
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -336,10 +292,7 @@ class TestDeleteTaskTool:
         """Test delete_task with invalid task_id format."""
         from mcp_server.tools import delete_task
 
-        result = delete_task(
-            user_id=str(uuid4()),
-            task_id="invalid-uuid"
-        )
+        result = delete_task(user_id=str(uuid4()), task_id="invalid-uuid")
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -351,10 +304,7 @@ class TestSearchTasksTool:
         """Test search_tasks with invalid user_id format."""
         from mcp_server.tools import search_tasks
 
-        result = search_tasks(
-            user_id="invalid-uuid",
-            query="test"
-        )
+        result = search_tasks(user_id="invalid-uuid", query="test")
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -362,10 +312,7 @@ class TestSearchTasksTool:
         """Test search_tasks with empty query."""
         from mcp_server.tools import search_tasks
 
-        result = search_tasks(
-            user_id=str(uuid4()),
-            query=""
-        )
+        result = search_tasks(user_id=str(uuid4()), query="")
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -373,10 +320,7 @@ class TestSearchTasksTool:
         """Test search_tasks with query > 100 chars."""
         from mcp_server.tools import search_tasks
 
-        result = search_tasks(
-            user_id=str(uuid4()),
-            query="x" * 101
-        )
+        result = search_tasks(user_id=str(uuid4()), query="x" * 101)
         assert "error" in result
         assert result["code"] == "VALIDATION_ERROR"
 
@@ -384,6 +328,7 @@ class TestSearchTasksTool:
 # =============================================================================
 # Integration Tests (Require Database)
 # =============================================================================
+
 
 @pytest.mark.integration
 class TestCreateTaskIntegration:
@@ -396,7 +341,7 @@ class TestCreateTaskIntegration:
         result = create_task(
             user_id=str(test_user.id),
             title="Integration Test Task",
-            description="Test description"
+            description="Test description",
         )
 
         assert "task_id" in result
@@ -407,10 +352,7 @@ class TestCreateTaskIntegration:
         """Test task creation with title only."""
         from mcp_server.tools import create_task
 
-        result = create_task(
-            user_id=str(test_user.id),
-            title="Title Only Task"
-        )
+        result = create_task(user_id=str(test_user.id), title="Title Only Task")
 
         assert result["status"] == "created"
 
@@ -423,10 +365,7 @@ class TestListTasksIntegration:
         """Test listing all tasks."""
         from mcp_server.tools import list_tasks
 
-        result = list_tasks(
-            user_id=str(test_user.id),
-            status="all"
-        )
+        result = list_tasks(user_id=str(test_user.id), status="all")
 
         assert "tasks" in result
         assert result["total"] >= 0
@@ -435,10 +374,7 @@ class TestListTasksIntegration:
         """Test listing pending tasks only."""
         from mcp_server.tools import list_tasks
 
-        result = list_tasks(
-            user_id=str(test_user.id),
-            status="pending"
-        )
+        result = list_tasks(user_id=str(test_user.id), status="pending")
 
         for task in result["tasks"]:
             assert task["completed"] == False
@@ -447,10 +383,7 @@ class TestListTasksIntegration:
         """Test listing completed tasks only."""
         from mcp_server.tools import list_tasks
 
-        result = list_tasks(
-            user_id=str(test_user.id),
-            status="completed"
-        )
+        result = list_tasks(user_id=str(test_user.id), status="completed")
 
         for task in result["tasks"]:
             assert task["completed"] == True
@@ -464,10 +397,7 @@ class TestMarkCompleteIntegration:
         """Test marking a task as complete."""
         from mcp_server.tools import mark_complete
 
-        result = mark_complete(
-            user_id=str(test_user.id),
-            task_id=str(pending_task.id)
-        )
+        result = mark_complete(user_id=str(test_user.id), task_id=str(pending_task.id))
 
         assert result["status"] == "completed"
 
@@ -476,8 +406,7 @@ class TestMarkCompleteIntegration:
         from mcp_server.tools import mark_complete
 
         result = mark_complete(
-            user_id=str(test_user.id),
-            task_id=str(completed_task.id)
+            user_id=str(test_user.id), task_id=str(completed_task.id)
         )
 
         assert result["status"] == "completed"
@@ -486,21 +415,20 @@ class TestMarkCompleteIntegration:
         """Test mark_complete with non-existent task."""
         from mcp_server.tools import mark_complete
 
-        result = mark_complete(
-            user_id=str(test_user.id),
-            task_id=str(uuid4())
-        )
+        result = mark_complete(user_id=str(test_user.id), task_id=str(uuid4()))
 
         assert "error" in result
         assert result["code"] == "NOT_FOUND"
 
-    def test_mark_complete_wrong_user(self, db_session, test_user, other_user, other_user_task):
+    def test_mark_complete_wrong_user(
+        self, db_session, test_user, other_user, other_user_task
+    ):
         """Test mark_complete enforces user isolation."""
         from mcp_server.tools import mark_complete
 
         result = mark_complete(
-            user_id=str(test_user.id),  # Wrong user
-            task_id=str(other_user_task.id)
+            user_id=str(test_user.id),
+            task_id=str(other_user_task.id),  # Wrong user
         )
 
         assert "error" in result
@@ -518,7 +446,7 @@ class TestUpdateTaskIntegration:
         result = update_task(
             user_id=str(test_user.id),
             task_id=str(pending_task.id),
-            title="Updated Title"
+            title="Updated Title",
         )
 
         assert result["status"] == "updated"
@@ -531,7 +459,7 @@ class TestUpdateTaskIntegration:
         result = update_task(
             user_id=str(test_user.id),
             task_id=str(pending_task.id),
-            description="Updated description"
+            description="Updated description",
         )
 
         assert result["status"] == "updated"
@@ -544,7 +472,7 @@ class TestUpdateTaskIntegration:
             user_id=str(test_user.id),
             task_id=str(pending_task.id),
             title="New Title",
-            description="New Description"
+            description="New Description",
         )
 
         assert result["status"] == "updated"
@@ -560,10 +488,7 @@ class TestDeleteTaskIntegration:
         from mcp_server.tools import delete_task
 
         task_id = str(pending_task.id)
-        result = delete_task(
-            user_id=str(test_user.id),
-            task_id=task_id
-        )
+        result = delete_task(user_id=str(test_user.id), task_id=task_id)
 
         assert result["status"] == "deleted"
         assert result["task_id"] == task_id
@@ -572,21 +497,20 @@ class TestDeleteTaskIntegration:
         """Test delete_task with non-existent task."""
         from mcp_server.tools import delete_task
 
-        result = delete_task(
-            user_id=str(test_user.id),
-            task_id=str(uuid4())
-        )
+        result = delete_task(user_id=str(test_user.id), task_id=str(uuid4()))
 
         assert "error" in result
         assert result["code"] == "NOT_FOUND"
 
-    def test_delete_task_wrong_user(self, db_session, test_user, other_user, other_user_task):
+    def test_delete_task_wrong_user(
+        self, db_session, test_user, other_user, other_user_task
+    ):
         """Test delete_task enforces user isolation."""
         from mcp_server.tools import delete_task
 
         result = delete_task(
-            user_id=str(test_user.id),  # Wrong user
-            task_id=str(other_user_task.id)
+            user_id=str(test_user.id),
+            task_id=str(other_user_task.id),  # Wrong user
         )
 
         assert "error" in result
@@ -601,36 +525,28 @@ class TestSearchTasksIntegration:
         """Test search finds matches in title."""
         from mcp_server.tools import search_tasks
 
-        result = search_tasks(
-            user_id=str(test_user.id),
-            query="groceries"
-        )
+        result = search_tasks(user_id=str(test_user.id), query="groceries")
 
         assert result["total"] >= 1
 
-    def test_search_tasks_finds_in_description(self, db_session, test_user, searchable_tasks):
+    def test_search_tasks_finds_in_description(
+        self, db_session, test_user, searchable_tasks
+    ):
         """Test search finds matches in description."""
         from mcp_server.tools import search_tasks
 
-        result = search_tasks(
-            user_id=str(test_user.id),
-            query="milk"
-        )
+        result = search_tasks(user_id=str(test_user.id), query="milk")
 
         assert result["total"] >= 1
 
-    def test_search_tasks_case_insensitive(self, db_session, test_user, searchable_tasks):
+    def test_search_tasks_case_insensitive(
+        self, db_session, test_user, searchable_tasks
+    ):
         """Test search is case-insensitive."""
         from mcp_server.tools import search_tasks
 
-        result_lower = search_tasks(
-            user_id=str(test_user.id),
-            query="groceries"
-        )
-        result_upper = search_tasks(
-            user_id=str(test_user.id),
-            query="GROCERIES"
-        )
+        result_lower = search_tasks(user_id=str(test_user.id), query="groceries")
+        result_upper = search_tasks(user_id=str(test_user.id), query="GROCERIES")
 
         assert result_lower["total"] == result_upper["total"]
 
@@ -638,10 +554,7 @@ class TestSearchTasksIntegration:
         """Test search returns empty list when no matches."""
         from mcp_server.tools import search_tasks
 
-        result = search_tasks(
-            user_id=str(test_user.id),
-            query="nonexistentxyz123"
-        )
+        result = search_tasks(user_id=str(test_user.id), query="nonexistentxyz123")
 
         assert result["tasks"] == []
         assert result["total"] == 0

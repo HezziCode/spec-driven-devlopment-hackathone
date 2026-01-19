@@ -5,14 +5,15 @@ Provides database engine configuration and session management for FastAPI
 dependency injection with Neon PostgreSQL, including connection retry logic.
 """
 
-from sqlmodel import create_engine, Session
-from typing import Generator
+import logging
 import os
 import time
-import logging
+from typing import Generator
+
 from dotenv import load_dotenv
-from sqlalchemy.exc import OperationalError
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
+from sqlmodel import Session, create_engine
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -50,9 +51,7 @@ engine = create_engine(
     pool_timeout=30,  # Seconds to wait before timing out connection request
     pool_recycle=3600,  # Recycle connections after 1 hour to prevent stale connections
     pool_pre_ping=True,  # Verify connections before using them
-    connect_args={
-        "connect_timeout": 10  # Connection timeout in seconds
-    }
+    connect_args={"connect_timeout": 10},  # Connection timeout in seconds
 )
 
 
@@ -81,7 +80,7 @@ def get_session_with_retry(max_retries: int = 3, retry_delay: float = 1.0) -> Se
         except OperationalError as e:
             last_error = e
             if attempt < max_retries - 1:
-                wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                wait_time = retry_delay * (2**attempt)  # Exponential backoff
                 logger.warning(
                     f"Database connection failed (attempt {attempt + 1}/{max_retries}). "
                     f"Retrying in {wait_time}s... Error: {str(e)}"

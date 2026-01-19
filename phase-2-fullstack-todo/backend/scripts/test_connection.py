@@ -8,9 +8,10 @@ Usage:
     python scripts/test_connection.py
 """
 
-from sqlmodel import Session, text
-import sys
 import os
+import sys
+
+from sqlmodel import Session, text
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -46,11 +47,13 @@ def test_connection() -> None:
                 print(f"   Database: {db_database}")
                 print(f"   Query result: {result[0]}")
             else:
-                print("⚠️  Database connection established but query returned unexpected result.")
+                print(
+                    "⚠️  Database connection established but query returned unexpected result."
+                )
                 print(f"   Expected: 1, Got: {result}")
 
     except Exception as e:
-        print(f"❌ Database connection failed!")
+        print("❌ Database connection failed!")
         print(f"   Error type: {type(e).__name__}")
         print(f"   Error message: {str(e)}")
         print("\nTroubleshooting:")

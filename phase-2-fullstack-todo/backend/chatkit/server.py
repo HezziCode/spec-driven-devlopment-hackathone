@@ -4,8 +4,7 @@ import json
 import logging
 from typing import AsyncGenerator
 
-from agents import Agent, Runner, AsyncOpenAI
-from openai.types.responses import ResponseTextDeltaEvent
+from agents import Agent
 from sqlmodel import Session
 
 from ai_agents.context import AgentContext
@@ -66,15 +65,11 @@ class ChatKitServer:
         # Create agent context with user_id, jwt_token, thread_id, and mcp_base_url
         # AgentContext is required for agent tools to call MCP server with proper auth
         agent_context = AgentContext(
-            user_id=user_id,
-            jwt_token=jwt_token,
-            conversation_id=thread_id
+            user_id=user_id, jwt_token=jwt_token, conversation_id=thread_id
         )
 
         # Build conversation messages
-        messages = [
-            {"role": msg["role"], "content": msg["content"]} for msg in history
-        ]
+        messages = [{"role": msg["role"], "content": msg["content"]} for msg in history]
 
         logger.info(f"Starting streaming response for thread {thread_id}")
 
@@ -86,9 +81,7 @@ class ChatKitServer:
             # Use the agent passed in constructor
             # Runner.run_streamed() automatically picks up OPENAI_API_KEY from environment
             result = Runner.run_streamed(
-                self.agent,
-                input=message,
-                context=agent_context
+                self.agent, input=message, context=agent_context
             )
 
             # Stream the response with proper SSE format
@@ -104,10 +97,12 @@ class ChatKitServer:
 
             # Add assistant message to thread (FIXED: added missing user_id parameter)
             if assistant_response:
-                self.thread_manager.add_message(thread_id, user_id, "assistant", assistant_response)
+                self.thread_manager.add_message(
+                    thread_id, user_id, "assistant", assistant_response
+                )
 
             # Send completion event with thread_id and message metadata
-            yield f"event: done\n"
+            yield "event: done\n"
             yield f"data: {json.dumps({'thread_id': thread_id, 'message_id': str(thread.id)})}\n\n"
 
         except Exception as e:

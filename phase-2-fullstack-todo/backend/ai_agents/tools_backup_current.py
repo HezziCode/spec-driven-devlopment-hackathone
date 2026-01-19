@@ -5,19 +5,19 @@ Tools use @function_tool decorator from OpenAI Agents SDK.
 """
 
 import logging
+
 import httpx
-from agents import function_tool, RunContextWrapper
+from agents import RunContextWrapper, function_tool
+
 from .context import AgentContext
-from .schemas import TaskOperationResult, TaskListResult, TaskInfo
+from .schemas import TaskInfo, TaskListResult, TaskOperationResult
 
 logger = logging.getLogger(__name__)
 
 
 @function_tool
 async def create_task(
-    ctx: RunContextWrapper[AgentContext],
-    title: str,
-    description: str = ""
+    ctx: RunContextWrapper[AgentContext], title: str, description: str = ""
 ) -> TaskOperationResult:
     """Create a new task for the user from chat conversation.
 
@@ -29,32 +29,34 @@ async def create_task(
     Returns:
         TaskOperationResult with task_id, status, and title
     """
-    logger.info(f"create_task: Creating task '{title}' for user {ctx.context.user_id} from chat")
+    logger.info(
+        f"create_task: Creating task '{title}' for user {ctx.context.user_id} from chat"
+    )
     # Call direct AI tools endpoint for task creation
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
             response = await client.post(
                 f"{ctx.context.mcp_base_url}/api/ai/tasks",
-                headers={
-                    "Authorization": f"Bearer {ctx.context.jwt_token}"
-                },
+                headers={"Authorization": f"Bearer {ctx.context.jwt_token}"},
                 json={
                     "user_id": ctx.context.user_id,
                     "title": title,
                     "description": description,
                     "source": "chat",  # Mark as chat-created
-                    "thread_id": ctx.context.conversation_id  # Link to chat thread
-                }
+                    "thread_id": ctx.context.conversation_id,  # Link to chat thread
+                },
             )
             response.raise_for_status()
 
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"create_task: Successfully created task {data.get('task_id')} for user {ctx.context.user_id}")
+                logger.info(
+                    f"create_task: Successfully created task {data.get('task_id')} for user {ctx.context.user_id}"
+                )
                 return TaskOperationResult(
                     task_id=data.get("task_id", ""),
                     status=data.get("status", "created"),
-                    title=data.get("title", title)
+                    title=data.get("title", title),
                 )
             else:
                 error_msg = f"Failed to create task: HTTP {response.status_code}"
@@ -73,8 +75,7 @@ async def create_task(
 
 @function_tool
 async def list_tasks(
-    ctx: RunContextWrapper[AgentContext],
-    status: str = "all"
+    ctx: RunContextWrapper[AgentContext], status: str = "all"
 ) -> TaskListResult:
     """List all tasks for the user.
 
@@ -95,10 +96,8 @@ async def list_tasks(
         try:
             response = await client.get(
                 f"{ctx.context.mcp_base_url}/users/{ctx.context.user_id}/tasks",
-                headers={
-                    "Authorization": f"Bearer {ctx.context.jwt_token}"
-                },
-                params=params
+                headers={"Authorization": f"Bearer {ctx.context.jwt_token}"},
+                params=params,
             )
             response.raise_for_status()
 
@@ -112,7 +111,7 @@ async def list_tasks(
                         completed=task.get("completed", False),
                         priority=task.get("priority", "medium"),
                         created_at=task.get("created_at", ""),
-                        updated_at=task.get("updated_at", "")
+                        updated_at=task.get("updated_at", ""),
                     )
                     for task in data.get("tasks", [])
                 ]
@@ -129,10 +128,7 @@ async def list_tasks(
 
 
 @function_tool
-async def get_task(
-    ctx: RunContextWrapper[AgentContext],
-    task_id: str
-) -> TaskInfo:
+async def get_task(ctx: RunContextWrapper[AgentContext], task_id: str) -> TaskInfo:
     """Retrieve a specific task for the user.
 
     Args:
@@ -147,9 +143,7 @@ async def get_task(
         try:
             response = await client.get(
                 f"{ctx.context.mcp_base_url}/users/{ctx.context.user_id}/tasks/{task_id}",
-                headers={
-                    "Authorization": f"Bearer {ctx.context.jwt_token}"
-                }
+                headers={"Authorization": f"Bearer {ctx.context.jwt_token}"},
             )
             response.raise_for_status()
 
@@ -162,7 +156,7 @@ async def get_task(
                     completed=data.get("completed", False),
                     priority=data.get("priority", "medium"),
                     created_at=data.get("created_at", ""),
-                    updated_at=data.get("updated_at", "")
+                    updated_at=data.get("updated_at", ""),
                 )
             else:
                 error_msg = f"Task not found: HTTP {response.status_code}"
@@ -177,8 +171,7 @@ async def get_task(
 
 @function_tool
 async def mark_complete(
-    ctx: RunContextWrapper[AgentContext],
-    task_id: str
+    ctx: RunContextWrapper[AgentContext], task_id: str
 ) -> TaskOperationResult:
     """Mark a task as completed.
 
@@ -190,9 +183,7 @@ async def mark_complete(
         TaskOperationResult with task_id, status, and title
     """
     # Prepare update payload to mark task as completed
-    update_payload = {
-        "completed": True
-    }
+    update_payload = {"completed": True}
 
     # Call direct AI tools endpoint for task updates
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -201,18 +192,16 @@ async def mark_complete(
                 f"{ctx.context.mcp_base_url}/api/ai/tasks/{task_id}",
                 headers={
                     "Authorization": f"Bearer {ctx.context.jwt_token}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
-                json=update_payload
+                json=update_payload,
             )
             response.raise_for_status()
 
             if response.status_code == 200:
                 data = response.json()
                 return TaskOperationResult(
-                    task_id=task_id,
-                    status="completed",
-                    title=data.get("title", "Task")
+                    task_id=task_id, status="completed", title=data.get("title", "Task")
                 )
             else:
                 error_msg = f"Failed to mark task complete: HTTP {response.status_code}"
@@ -230,7 +219,7 @@ async def update_task(
     ctx: RunContextWrapper[AgentContext],
     task_id: str,
     title: str = None,
-    description: str = None
+    description: str = None,
 ) -> TaskOperationResult:
     """Update an existing task.
 
@@ -252,7 +241,9 @@ async def update_task(
 
     # If no fields to update, raise error
     if not update_payload:
-        raise RuntimeError("At least one field (title or description) must be provided for update")
+        raise RuntimeError(
+            "At least one field (title or description) must be provided for update"
+        )
 
     # Call direct AI tools endpoint for task updates
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -261,9 +252,9 @@ async def update_task(
                 f"{ctx.context.mcp_base_url}/api/ai/tasks/{task_id}",
                 headers={
                     "Authorization": f"Bearer {ctx.context.jwt_token}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
-                json=update_payload
+                json=update_payload,
             )
             response.raise_for_status()
 
@@ -272,7 +263,7 @@ async def update_task(
                 return TaskOperationResult(
                     task_id=task_id,
                     status="updated",
-                    title=data.get("title", title or "Task")
+                    title=data.get("title", title or "Task"),
                 )
             else:
                 error_msg = f"Failed to update task: HTTP {response.status_code}"
@@ -287,8 +278,7 @@ async def update_task(
 
 @function_tool
 async def delete_task(
-    ctx: RunContextWrapper[AgentContext],
-    task_id: str
+    ctx: RunContextWrapper[AgentContext], task_id: str
 ) -> TaskOperationResult:
     """Delete a task.
 
@@ -304,18 +294,14 @@ async def delete_task(
         try:
             response = await client.delete(
                 f"{ctx.context.mcp_base_url}/api/ai/tasks/{task_id}",
-                headers={
-                    "Authorization": f"Bearer {ctx.context.jwt_token}"
-                }
+                headers={"Authorization": f"Bearer {ctx.context.jwt_token}"},
             )
             response.raise_for_status()
 
             if response.status_code == 200:
                 data = response.json()
                 return TaskOperationResult(
-                    task_id=task_id,
-                    status="deleted",
-                    title=data.get("title", "Task")
+                    task_id=task_id, status="deleted", title=data.get("title", "Task")
                 )
             else:
                 error_msg = f"Failed to delete task: HTTP {response.status_code}"
@@ -330,8 +316,7 @@ async def delete_task(
 
 @function_tool
 async def search_tasks(
-    ctx: RunContextWrapper[AgentContext],
-    query: str
+    ctx: RunContextWrapper[AgentContext], query: str
 ) -> TaskListResult:
     """Search tasks by keyword.
 
@@ -347,9 +332,7 @@ async def search_tasks(
         try:
             response = await client.get(
                 f"{ctx.context.mcp_base_url}/users/{ctx.context.user_id}/tasks",
-                headers={
-                    "Authorization": f"Bearer {ctx.context.jwt_token}"
-                }
+                headers={"Authorization": f"Bearer {ctx.context.jwt_token}"},
             )
             response.raise_for_status()
 
@@ -363,7 +346,7 @@ async def search_tasks(
                         completed=task.get("completed", False),
                         priority=task.get("priority", "medium"),
                         created_at=task.get("created_at", ""),
-                        updated_at=task.get("updated_at", "")
+                        updated_at=task.get("updated_at", ""),
                     )
                     for task in data.get("tasks", [])
                 ]

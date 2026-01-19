@@ -1,7 +1,8 @@
 """Pydantic schemas for ChatKit chat endpoint."""
 
+from typing import List, Optional
+
 from pydantic import BaseModel, Field
-from typing import Optional, List
 
 
 class ChatRequest(BaseModel):
@@ -14,13 +15,13 @@ class ChatRequest(BaseModel):
 
     thread_id: Optional[str] = Field(
         None,
-        description="Existing thread ID to continue conversation. Creates new thread if not provided."
+        description="Existing thread ID to continue conversation. Creates new thread if not provided.",
     )
     message: str = Field(
         ...,
         min_length=1,
         max_length=4000,
-        description="User's natural language message"
+        description="User's natural language message",
     )
 
 
@@ -58,8 +59,7 @@ class ThreadResponse(BaseModel):
     created_at: str = Field(..., description="ISO timestamp of thread creation")
     updated_at: str = Field(..., description="ISO timestamp of last update")
     messages: List[ChatMessageResponse] = Field(
-        ...,
-        description="List of messages in the thread"
+        ..., description="List of messages in the thread"
     )
 
 
@@ -117,6 +117,7 @@ class ErrorResponse(BaseModel):
 
 # ==================== ChatKit Session Management Schemas ====================
 
+
 class SessionResponse(BaseModel):
     """
     Response schema for ChatKit session creation.
@@ -125,15 +126,16 @@ class SessionResponse(BaseModel):
         client_secret: ChatKit client secret for establishing session.
         expires_at: ISO 8601 timestamp when session expires.
     """
+
     client_secret: str = Field(
         ...,
         description="ChatKit client secret for session establishment",
-        examples=["cs_1234567890abcdef"]
+        examples=["cs_1234567890abcdef"],
     )
     expires_at: str = Field(
         ...,
         description="ISO 8601 timestamp when session expires",
-        examples=["2025-12-31T23:59:59Z"]
+        examples=["2025-12-31T23:59:59Z"],
     )
 
 
@@ -147,29 +149,27 @@ class ThreadSyncRequest(BaseModel):
         last_message_preview: Preview of the last message (optional).
         message_count: Total number of messages in thread.
     """
+
     thread_id: str = Field(
         ...,
         max_length=100,
         description="ChatKit thread identifier",
-        examples=["thread_abc123"]
+        examples=["thread_abc123"],
     )
     name: str = Field(
         ...,
         max_length=100,
         description="Display name for the thread",
-        examples=["Task Planning Discussion"]
+        examples=["Task Planning Discussion"],
     )
     last_message_preview: Optional[str] = Field(
         default=None,
         max_length=200,
         description="Preview of the last message",
-        examples=["Can you help me create a task for..."]
+        examples=["Can you help me create a task for..."],
     )
     message_count: int = Field(
-        ...,
-        ge=0,
-        description="Total number of messages in thread",
-        examples=[15]
+        ..., ge=0, description="Total number of messages in thread", examples=[15]
     )
 
 
@@ -185,35 +185,30 @@ class ThreadItemResponse(BaseModel):
         created_at: Thread creation timestamp.
         updated_at: Last update timestamp.
     """
+
     id: str = Field(
         ...,
         description="Unique thread identifier from ChatKit",
-        examples=["thread_abc123"]
+        examples=["thread_abc123"],
     )
     name: str = Field(
         ...,
         description="Display name for the thread",
-        examples=["Task Planning Discussion"]
+        examples=["Task Planning Discussion"],
     )
     last_message_preview: Optional[str] = Field(
         default=None,
         description="Preview of the last message in thread",
-        examples=["Can you help me create a task for..."]
+        examples=["Can you help me create a task for..."],
     )
     message_count: int = Field(
-        ...,
-        description="Total number of messages in thread",
-        examples=[15]
+        ..., description="Total number of messages in thread", examples=[15]
     )
     created_at: str = Field(
-        ...,
-        description="Thread creation timestamp",
-        examples=["2025-12-30T10:00:00Z"]
+        ..., description="Thread creation timestamp", examples=["2025-12-30T10:00:00Z"]
     )
     updated_at: str = Field(
-        ...,
-        description="Last update timestamp",
-        examples=["2025-12-31T14:30:00Z"]
+        ..., description="Last update timestamp", examples=["2025-12-31T14:30:00Z"]
     )
 
 
@@ -225,13 +220,10 @@ class ThreadListResponseV2(BaseModel):
         threads: Array of thread objects.
         total: Total number of threads for this user.
     """
+
     threads: List[ThreadItemResponse] = Field(
-        ...,
-        description="Array of thread objects"
+        ..., description="Array of thread objects"
     )
     total: int = Field(
-        ...,
-        ge=0,
-        description="Total number of threads for this user",
-        examples=[25]
+        ..., ge=0, description="Total number of threads for this user", examples=[25]
     )

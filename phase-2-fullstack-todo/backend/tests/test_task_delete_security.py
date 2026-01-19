@@ -9,25 +9,25 @@ This module tests security-critical behaviors:
 - Idempotency and response timing consistency
 """
 
-import pytest
 import time
 from uuid import uuid4
+
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from models import Task, TaskTag
 
-
 # ============================================================================
 # Successful Deletion Tests
 # ============================================================================
+
 
 def test_delete_task_success_with_cascade(
     client: TestClient,
     auth_headers_user_a: dict,
     test_user_a,
     test_task_with_tags: Task,
-    session: Session
+    session: Session,
 ):
     """
     Test successful task deletion with cascade delete of tags.
@@ -40,18 +40,17 @@ def test_delete_task_success_with_cascade(
     task_id = test_task_with_tags.id
 
     # Verify tags exist before deletion
-    tags_before = session.exec(
-        select(TaskTag).where(TaskTag.task_id == task_id)
-    ).all()
+    tags_before = session.exec(select(TaskTag).where(TaskTag.task_id == task_id)).all()
     assert len(tags_before) > 0, "Test setup: task should have tags"
 
     # Delete task
     response = client.delete(
-        f"/users/{user.id}/tasks/{task_id}",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/{task_id}", headers=auth_headers_user_a
     )
 
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.json()}"
+    assert response.status_code == 200, (
+        f"Expected 200, got {response.status_code}: {response.json()}"
+    )
     assert response.json()["message"] == "Task deleted successfully"
 
     # Verify task deleted
@@ -59,9 +58,7 @@ def test_delete_task_success_with_cascade(
     assert task_after is None, "Task should be deleted from database"
 
     # Verify tags deleted (cascade)
-    tags_after = session.exec(
-        select(TaskTag).where(TaskTag.task_id == task_id)
-    ).all()
+    tags_after = session.exec(select(TaskTag).where(TaskTag.task_id == task_id)).all()
     assert len(tags_after) == 0, "All tags should be deleted (cascade)"
 
 
@@ -70,7 +67,7 @@ def test_delete_task_no_tags(
     auth_headers_user_a: dict,
     test_user_a,
     test_task_no_tags: Task,
-    session: Session
+    session: Session,
 ):
     """
     Test deletion of task with no tags.
@@ -83,8 +80,7 @@ def test_delete_task_no_tags(
     task_id = test_task_no_tags.id
 
     response = client.delete(
-        f"/users/{user.id}/tasks/{task_id}",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/{task_id}", headers=auth_headers_user_a
     )
 
     assert response.status_code == 200
@@ -96,10 +92,7 @@ def test_delete_task_no_tags(
 
 
 def test_delete_task_cascade_multiple_tags(
-    client: TestClient,
-    auth_headers_user_a: dict,
-    test_user_a,
-    session: Session
+    client: TestClient, auth_headers_user_a: dict, test_user_a, session: Session
 ):
     """
     Test cascade delete with multiple tags (5 tags).
@@ -111,11 +104,7 @@ def test_delete_task_cascade_multiple_tags(
     user, _, _ = test_user_a
 
     # Create task with 5 tags
-    task = Task(
-        title="Task with many tags",
-        user_id=user.id,
-        priority="medium"
-    )
+    task = Task(title="Task with many tags", user_id=user.id, priority="medium")
     session.add(task)
     session.flush()
 
@@ -127,23 +116,18 @@ def test_delete_task_cascade_multiple_tags(
     session.refresh(task)
 
     # Verify 5 tags exist
-    tags_before = session.exec(
-        select(TaskTag).where(TaskTag.task_id == task.id)
-    ).all()
+    tags_before = session.exec(select(TaskTag).where(TaskTag.task_id == task.id)).all()
     assert len(tags_before) == 5
 
     # Delete task
     response = client.delete(
-        f"/users/{user.id}/tasks/{task.id}",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/{task.id}", headers=auth_headers_user_a
     )
 
     assert response.status_code == 200
 
     # Verify all 5 tags deleted
-    tags_after = session.exec(
-        select(TaskTag).where(TaskTag.task_id == task.id)
-    ).all()
+    tags_after = session.exec(select(TaskTag).where(TaskTag.task_id == task.id)).all()
     assert len(tags_after) == 0, "All 5 tags should be deleted"
 
 
@@ -152,7 +136,7 @@ def test_delete_task_no_orphaned_tags(
     auth_headers_user_a: dict,
     test_user_a,
     test_task_with_tags: Task,
-    session: Session
+    session: Session,
 ):
     """
     Verify no orphaned tags after deletion.
@@ -165,16 +149,13 @@ def test_delete_task_no_orphaned_tags(
     task_id = test_task_with_tags.id
 
     # Get tag IDs before deletion
-    tags_before = session.exec(
-        select(TaskTag).where(TaskTag.task_id == task_id)
-    ).all()
+    tags_before = session.exec(select(TaskTag).where(TaskTag.task_id == task_id)).all()
     tag_ids_before = [tag.id for tag in tags_before]
     assert len(tag_ids_before) > 0
 
     # Delete task
     response = client.delete(
-        f"/users/{user.id}/tasks/{task_id}",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/{task_id}", headers=auth_headers_user_a
     )
 
     assert response.status_code == 200
@@ -195,10 +176,9 @@ def test_delete_task_no_orphaned_tags(
 # Information Disclosure Prevention Tests (CRITICAL SECURITY)
 # ============================================================================
 
+
 def test_delete_task_non_existent_returns_404(
-    client: TestClient,
-    auth_headers_user_a: dict,
-    test_user_a
+    client: TestClient, auth_headers_user_a: dict, test_user_a
 ):
     """
     Test non-existent task returns 404.
@@ -211,8 +191,7 @@ def test_delete_task_non_existent_returns_404(
     non_existent_id = uuid4()
 
     response = client.delete(
-        f"/users/{user.id}/tasks/{non_existent_id}",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/{non_existent_id}", headers=auth_headers_user_a
     )
 
     assert response.status_code == 404
@@ -226,7 +205,7 @@ def test_delete_task_cross_user_access_returns_404_not_403(
     test_user_a,
     test_user_b,
     test_task_user_b: Task,
-    session: Session
+    session: Session,
 ):
     """
     CRITICAL SECURITY TEST: Cross-user deletion returns 404 (NOT 403).
@@ -243,37 +222,36 @@ def test_delete_task_cross_user_access_returns_404_not_403(
 
     # User A attempts to delete User B's task
     response_a = client.delete(
-        f"/users/{user_a.id}/tasks/{task_b_id}",
-        headers=auth_headers_user_a
+        f"/users/{user_a.id}/tasks/{task_b_id}", headers=auth_headers_user_a
     )
 
     # CRITICAL: Must be 404, not 403
-    assert response_a.status_code == 404, \
-        f"SECURITY VIOLATION: Cross-user deletion must return 404 (not 403) to prevent enumeration. " \
+    assert response_a.status_code == 404, (
+        f"SECURITY VIOLATION: Cross-user deletion must return 404 (not 403) to prevent enumeration. "
         f"Got {response_a.status_code}: {response_a.json()}"
+    )
 
-    assert response_a.json()["detail"] == "Task not found", \
+    assert response_a.json()["detail"] == "Task not found", (
         "Error message should not distinguish between non-existent and unauthorized"
+    )
 
     # Verify User B's task still exists
     task_still_exists = session.get(Task, task_b_id)
-    assert task_still_exists is not None, \
+    assert task_still_exists is not None, (
         "SECURITY VIOLATION: User A should not be able to delete User B's task"
+    )
 
     # Verify User B can still delete their own task (sanity check)
     response_b = client.delete(
-        f"/users/{user_b.id}/tasks/{task_b_id}",
-        headers=auth_headers_user_b
+        f"/users/{user_b.id}/tasks/{task_b_id}", headers=auth_headers_user_b
     )
-    assert response_b.status_code == 200, \
+    assert response_b.status_code == 200, (
         "User B should still be able to delete their own task"
+    )
 
 
 def test_delete_task_response_timing_consistent(
-    client: TestClient,
-    auth_headers_user_a: dict,
-    test_user_a,
-    test_task_user_b: Task
+    client: TestClient, auth_headers_user_a: dict, test_user_a, test_task_user_b: Task
 ):
     """
     Test response timing consistency to prevent timing attacks.
@@ -292,8 +270,7 @@ def test_delete_task_response_timing_consistent(
     for _ in range(5):
         start = time.perf_counter()
         response1 = client.delete(
-            f"/users/{user_a.id}/tasks/{non_existent_id}",
-            headers=auth_headers_user_a
+            f"/users/{user_a.id}/tasks/{non_existent_id}", headers=auth_headers_user_a
         )
         latency1 = time.perf_counter() - start
         latencies.append(("non_existent", latency1))
@@ -303,8 +280,7 @@ def test_delete_task_response_timing_consistent(
     for _ in range(5):
         start = time.perf_counter()
         response2 = client.delete(
-            f"/users/{user_a.id}/tasks/{user_b_task_id}",
-            headers=auth_headers_user_a
+            f"/users/{user_a.id}/tasks/{user_b_task_id}", headers=auth_headers_user_a
         )
         latency2 = time.perf_counter() - start
         latencies.append(("other_user", latency2))
@@ -316,19 +292,18 @@ def test_delete_task_response_timing_consistent(
 
     # Times should be similar (within 50ms)
     time_diff = abs(non_existent_avg - other_user_avg)
-    assert time_diff < 0.05, \
-        f"Timing attack risk: Average response time difference {time_diff*1000:.2f}ms exceeds 50ms threshold"
+    assert time_diff < 0.05, (
+        f"Timing attack risk: Average response time difference {time_diff * 1000:.2f}ms exceeds 50ms threshold"
+    )
 
 
 # ============================================================================
 # Authorization Tests
 # ============================================================================
 
+
 def test_delete_task_path_user_mismatch_returns_403(
-    client: TestClient,
-    auth_headers_user_a: dict,
-    test_user_a,
-    test_user_b
+    client: TestClient, auth_headers_user_a: dict, test_user_a, test_user_b
 ):
     """
     Test path user_id mismatch returns 403 before DB query.
@@ -341,8 +316,7 @@ def test_delete_task_path_user_mismatch_returns_403(
     user_b, _, _ = test_user_b
 
     response = client.delete(
-        f"/users/{user_b.id}/tasks/{uuid4()}",
-        headers=auth_headers_user_a
+        f"/users/{user_b.id}/tasks/{uuid4()}", headers=auth_headers_user_a
     )
 
     assert response.status_code == 403
@@ -353,10 +327,9 @@ def test_delete_task_path_user_mismatch_returns_403(
 # Authentication Tests
 # ============================================================================
 
+
 def test_delete_task_no_token_returns_401(
-    client: TestClient,
-    test_user_a,
-    test_task_user_a: Task
+    client: TestClient, test_user_a, test_task_user_a: Task
 ):
     """
     Test missing JWT token returns 401.
@@ -374,13 +347,14 @@ def test_delete_task_no_token_returns_401(
     )
 
     assert response.status_code == 401
-    assert "Authorization" in response.json()["error"] or "MISSING_TOKEN" in response.json()["code"]
+    assert (
+        "Authorization" in response.json()["error"]
+        or "MISSING_TOKEN" in response.json()["code"]
+    )
 
 
 def test_delete_task_invalid_token_returns_401(
-    client: TestClient,
-    test_user_a,
-    test_task_user_a: Task
+    client: TestClient, test_user_a, test_task_user_a: Task
 ):
     """
     Test invalid JWT token returns 401.
@@ -394,23 +368,23 @@ def test_delete_task_invalid_token_returns_401(
 
     response = client.delete(
         f"/users/{user.id}/tasks/{task_id}",
-        headers={"Authorization": "Bearer invalid-token"}
+        headers={"Authorization": "Bearer invalid-token"},
     )
 
     assert response.status_code == 401
     json_response = response.json()
-    assert "Invalid" in json_response.get("error", "") or "INVALID" in json_response.get("code", "")
+    assert "Invalid" in json_response.get(
+        "error", ""
+    ) or "INVALID" in json_response.get("code", "")
 
 
 # ============================================================================
 # Idempotency Tests
 # ============================================================================
 
+
 def test_delete_task_idempotent(
-    client: TestClient,
-    auth_headers_user_a: dict,
-    test_user_a,
-    test_task_user_a: Task
+    client: TestClient, auth_headers_user_a: dict, test_user_a, test_task_user_a: Task
 ):
     """
     Test DELETE is idempotent (second delete returns 404).
@@ -425,16 +399,14 @@ def test_delete_task_idempotent(
 
     # First deletion
     response1 = client.delete(
-        f"/users/{user.id}/tasks/{task_id}",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/{task_id}", headers=auth_headers_user_a
     )
     assert response1.status_code == 200
     assert response1.json()["message"] == "Task deleted successfully"
 
     # Second deletion (idempotent)
     response2 = client.delete(
-        f"/users/{user.id}/tasks/{task_id}",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/{task_id}", headers=auth_headers_user_a
     )
     assert response2.status_code == 404
     assert response2.json()["detail"] == "Task not found"
@@ -444,10 +416,9 @@ def test_delete_task_idempotent(
 # Input Validation Tests
 # ============================================================================
 
+
 def test_delete_task_invalid_uuid_format(
-    client: TestClient,
-    auth_headers_user_a: dict,
-    test_user_a
+    client: TestClient, auth_headers_user_a: dict, test_user_a
 ):
     """
     Test invalid UUID format returns 422.
@@ -459,8 +430,7 @@ def test_delete_task_invalid_uuid_format(
     user, _, _ = test_user_a
 
     response = client.delete(
-        f"/users/{user.id}/tasks/not-a-uuid",
-        headers=auth_headers_user_a
+        f"/users/{user.id}/tasks/not-a-uuid", headers=auth_headers_user_a
     )
 
     assert response.status_code == 422
@@ -470,11 +440,9 @@ def test_delete_task_invalid_uuid_format(
 # Concurrent Deletion Tests
 # ============================================================================
 
+
 def test_delete_task_concurrent_attempts(
-    client: TestClient,
-    auth_headers_user_a: dict,
-    test_user_a,
-    session: Session
+    client: TestClient, auth_headers_user_a: dict, test_user_a, session: Session
 ):
     """
     Test concurrent deletion attempts.
@@ -490,9 +458,7 @@ def test_delete_task_concurrent_attempts(
 
     # Create a task to delete
     task = Task(
-        title="Task for concurrent deletion",
-        user_id=user.id,
-        priority="medium"
+        title="Task for concurrent deletion", user_id=user.id, priority="medium"
     )
     session.add(task)
     session.commit()
@@ -503,8 +469,7 @@ def test_delete_task_concurrent_attempts(
 
     def delete_task():
         response = client.delete(
-            f"/users/{user.id}/tasks/{task_id}",
-            headers=auth_headers_user_a
+            f"/users/{user.id}/tasks/{task_id}", headers=auth_headers_user_a
         )
         return response.status_code
 

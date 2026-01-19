@@ -146,6 +146,7 @@ export interface UpdateUserRequest {
  * Query parameters for fetching tasks
  */
 export interface TaskQueryParams {
+  status(arg0: string, status: any): unknown;
   limit?: number;
   offset?: number;
   completed?: boolean;

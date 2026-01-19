@@ -1,34 +1,34 @@
 """Custom chat API routes without ChatKit dependencies."""
 
 import logging
-from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
-from sse_starlette.sse import EventSourceResponse
 from sqlmodel import Session
 
-from middleware.auth_middleware import get_current_user, get_user_id_from_token
 from db import get_session
-from schemas.chatkit import (
-    SessionResponse,
-    ThreadSyncRequest,
-    ThreadItemResponse,
-    ThreadListResponseV2,
-)
+from middleware.auth_middleware import get_current_user
 from schemas import (
     ChatKitRequest,
     ErrorResponse,
-    ThreadListResponse,
     ThreadResponse,
+)
+from schemas.chatkit import (
+    ThreadItemResponse,
+    ThreadListResponseV2,
+    ThreadSyncRequest,
 )
 
 # Import the service functions at the top to avoid import issues in async context
 from services.chatkit_service import (
     delete_thread as delete_thread_service,
+)
+from services.chatkit_service import (
     list_threads as list_threads_service,
-    sync_thread
+)
+from services.chatkit_service import (
+    sync_thread,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ async def send_message(
     user_id: UUID,
     request: Request,
     chat_request: ChatKitRequest,
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> StreamingResponse:
     """Send a message and receive streaming AI response.
@@ -70,12 +70,15 @@ async def send_message(
 
     # Extract JWT token from Authorization header
     auth_header = request.headers.get("Authorization", "")
-    jwt_token = auth_header.replace("Bearer ", "") if auth_header.startswith("Bearer ") else ""
+    jwt_token = (
+        auth_header.replace("Bearer ", "") if auth_header.startswith("Bearer ") else ""
+    )
 
     if not jwt_token:
         raise HTTPException(status_code=401, detail="Missing authentication token")
 
     from services.chatkit_service import ChatKitService
+
     service = ChatKitService(session)
 
     async def generate_events():
@@ -90,6 +93,7 @@ async def send_message(
                 # Add a small delay after thread creation event to ensure database visibility
                 if '"threadId"' in event and thread_id is None:
                     import asyncio
+
                     await asyncio.sleep(0.1)  # Small delay after new thread creation
                 yield event
         except ValueError as e:
@@ -97,7 +101,7 @@ async def send_message(
             yield f"event: error\ndata: {str(e)}\n\n"
         except Exception as e:
             logger.exception(f"Unexpected chat error: {e}")
-            yield f"event: error\ndata: Internal server error\n\n"
+            yield "event: error\ndata: Internal server error\n\n"
 
     return StreamingResponse(
         generate_events(),
@@ -124,7 +128,7 @@ async def list_threads_endpoint(
     user_id: UUID,
     limit: int = 50,
     offset: int = 0,
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> ThreadListResponseV2:
     """List all conversation threads for the user."""
@@ -151,10 +155,7 @@ async def list_threads_endpoint(
         return ThreadListResponseV2(threads=thread_items, total=total)
     except Exception as e:
         logger.exception(f"Failed to list threads: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to list threads: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to list threads: {str(e)}")
 
 
 @router.get(
@@ -165,14 +166,17 @@ async def list_threads_endpoint(
     responses={
         200: {"description": "Thread with messages"},
         401: {"model": ErrorResponse, "description": "Not authenticated"},
-        403: {"model": ErrorResponse, "description": "Not authorized to access this thread"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Not authorized to access this thread",
+        },
         404: {"model": ErrorResponse, "description": "Thread not found"},
     },
 )
 async def get_thread(
     user_id: UUID,
     thread_id: str,
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> ThreadResponse:
     """Get a specific thread with all its messages."""
@@ -181,6 +185,7 @@ async def get_thread(
         raise HTTPException(status_code=403, detail="Not authorized")
 
     from services.chatkit_service import ChatKitService
+
     service = ChatKitService(session)
 
     try:
@@ -196,10 +201,7 @@ async def get_thread(
         raise  # Re-raise HTTP exceptions
     except Exception as e:
         logger.exception(f"Failed to get thread: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get thread: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get thread: {str(e)}")
 
 
 @router.delete(
@@ -209,14 +211,17 @@ async def get_thread(
     responses={
         200: {"description": "Thread deleted successfully"},
         401: {"model": ErrorResponse, "description": "Not authenticated"},
-        403: {"model": ErrorResponse, "description": "Not authorized to delete this thread"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Not authorized to delete this thread",
+        },
         404: {"model": ErrorResponse, "description": "Thread not found"},
     },
 )
 async def delete_thread_endpoint(
     user_id: UUID,
     thread_id: str,
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     """Delete a conversation thread."""
@@ -239,8 +244,7 @@ async def delete_thread_endpoint(
     except Exception as e:
         logger.exception(f"Failed to delete thread: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to delete thread: {str(e)}"
+            status_code=500, detail=f"Failed to delete thread: {str(e)}"
         )
 
 
@@ -261,7 +265,7 @@ async def sync_thread_endpoint(
     user_id: UUID,
     thread_id: str,
     thread_data: ThreadSyncRequest,
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     """Sync thread metadata."""
@@ -284,7 +288,4 @@ async def sync_thread_endpoint(
         )
     except Exception as e:
         logger.exception(f"Failed to sync thread: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to sync thread: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to sync thread: {str(e)}")

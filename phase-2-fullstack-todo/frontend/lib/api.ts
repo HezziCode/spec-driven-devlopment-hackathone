@@ -75,24 +75,32 @@ const apiRequest = async <T>(
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       let errorCode = `HTTP_${response.status}`;
 
-      // Handle nested format: {detail: {error: "...", code: "..."}}
-      if (errorData.detail && typeof errorData.detail === 'object') {
-        errorMessage = errorData.detail.error || errorData.detail.message || errorMessage;
-        errorCode = errorData.detail.code || errorCode;
-      }
-      // Handle flat format: {error: "...", code: "..."}
-      else if (errorData.error) {
-        errorMessage = errorData.error;
-        errorCode = errorData.code || errorCode;
-      }
-      // Handle simple string detail: {detail: "..."}
-      else if (typeof errorData.detail === 'string') {
-        errorMessage = errorData.detail;
-      }
-      // Handle message field
-      else if (errorData.message) {
-        errorMessage = errorData.message;
-        errorCode = errorData.code || errorCode;
+      // Type guard for error data object
+      const isErrorObject = (data: unknown): data is Record<string, unknown> => {
+        return typeof data === 'object' && data !== null;
+      };
+
+      if (isErrorObject(errorData)) {
+        // Handle nested format: {detail: {error: "...", code: "..."}}
+        if (errorData.detail && typeof errorData.detail === 'object' && errorData.detail !== null) {
+          const detail = errorData.detail as Record<string, unknown>;
+          errorMessage = (detail.error as string) || (detail.message as string) || errorMessage;
+          errorCode = (detail.code as string) || errorCode;
+        }
+        // Handle flat format: {error: "...", code: "..."}
+        else if (typeof errorData.error === 'string') {
+          errorMessage = errorData.error;
+          errorCode = (typeof errorData.code === 'string' ? errorData.code : errorCode);
+        }
+        // Handle simple string detail: {detail: "..."}
+        else if (typeof errorData.detail === 'string') {
+          errorMessage = errorData.detail;
+        }
+        // Handle message field
+        else if (typeof errorData.message === 'string') {
+          errorMessage = errorData.message;
+          errorCode = (typeof errorData.code === 'string' ? errorData.code : errorCode);
+        }
       }
 
       const error = new Error(errorMessage);
@@ -100,7 +108,7 @@ const apiRequest = async <T>(
       (error as any).statusCode = response.status;
       (error as any).code = errorCode;
       (error as any).data = errorData;
-      (error as any).details = errorData.detail;
+      (error as any).details = isErrorObject(errorData) ? errorData.detail : undefined;
 
       throw error;
     }
@@ -183,10 +191,10 @@ export const taskApi = {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    if (params?.status) searchParams.set('status', params.status);
-    if (params?.priority) searchParams.set('priority', params.priority);
-    if (params?.tag) searchParams.set('tag', params.tag);
-    if (params?.search) searchParams.set('search', params.search);
+    if (params?.status) searchParams.set('status', params.status.toString());
+    if (params?.priority) searchParams.set('priority', params.priority.toString());
+    if (params?.tag) searchParams.set('tag', params.tag.toString());
+    if (params?.search) searchParams.set('search', params.search.toString());
 
     const queryString = searchParams.toString();
     return apiRequest<TaskListResponse>(

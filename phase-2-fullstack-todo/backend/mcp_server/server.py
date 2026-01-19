@@ -33,7 +33,7 @@ mcp = FastMCP(
 
     All tools require a user_id parameter to ensure user isolation.
     Tasks are stored in a PostgreSQL database.
-    """
+    """,
 )
 
 

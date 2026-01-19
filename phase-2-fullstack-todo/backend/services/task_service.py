@@ -1,11 +1,12 @@
-from sqlmodel import Session, select
-from sqlalchemy import func, case, desc, asc
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 from uuid import UUID
 
-from models import Task, TaskTag, User
-from schemas.task import TaskCreate, TaskUpdate, PriorityEnum
+from sqlalchemy import asc, case, desc, func
+from sqlmodel import Session, select
+
+from models import Task, TaskTag
+from schemas.task import PriorityEnum, TaskCreate, TaskUpdate
 
 
 def create_task(
@@ -13,7 +14,7 @@ def create_task(
     task_data: TaskCreate,
     user_id: UUID,
     source: str = "manual",
-    thread_id: Optional[str] = None
+    thread_id: Optional[str] = None,
 ) -> Task:
     """
     Create a new task for a user.
@@ -33,7 +34,7 @@ def create_task(
         priority=task_data.priority or PriorityEnum.medium,
         user_id=user_id,
         source=source,
-        created_by_thread_id=thread_id if source == "chat" else None
+        created_by_thread_id=thread_id if source == "chat" else None,
     )
 
     session.add(task)
@@ -43,10 +44,7 @@ def create_task(
     if task_data.tags:
         for tag_name in task_data.tags:
             if tag_name.strip():  # Only add non-empty tags
-                tag = TaskTag(
-                    task_id=task.id,
-                    tag_name=tag_name.strip()
-                )
+                tag = TaskTag(task_id=task.id, tag_name=tag_name.strip())
                 session.add(tag)
 
     session.commit()
@@ -64,7 +62,7 @@ def get_user_tasks(
     search: Optional[str] = None,
     sort: str = "created",
     limit: int = 20,
-    offset: int = 0
+    offset: int = 0,
 ) -> tuple[List[Task], int]:
     """
     Get tasks for a specific user with optional filters.
@@ -83,8 +81,8 @@ def get_user_tasks(
     if search is not None:
         search_pattern = f"%{search}%"
         query = query.where(
-            (Task.title.ilike(search_pattern)) |
-            (Task.description.ilike(search_pattern))
+            (Task.title.ilike(search_pattern))
+            | (Task.description.ilike(search_pattern))
         )
 
     # Apply tag filter if needed
@@ -109,7 +107,7 @@ def get_user_tasks(
                 (Task.priority == "high", 2),
                 (Task.priority == "medium", 3),
                 (Task.priority == "low", 4),
-                else_=5
+                else_=5,
             )
         )
     elif sort == "updated":
@@ -148,10 +146,7 @@ def get_task_by_id(session: Session, task_id: UUID, user_id: UUID) -> Optional[T
 
 
 def update_task(
-    session: Session,
-    task_id: UUID,
-    task_data: TaskUpdate,
-    user_id: UUID
+    session: Session, task_id: UUID, task_data: TaskUpdate, user_id: UUID
 ) -> Optional[Task]:
     """
     Update an existing task.
@@ -179,6 +174,7 @@ def update_task(
     if task_data.tags is not None:
         # Delete all existing tags for this task first
         from sqlalchemy import delete as sql_delete
+
         delete_stmt = sql_delete(TaskTag).where(TaskTag.task_id == task.id)
         session.exec(delete_stmt)
 
@@ -188,10 +184,7 @@ def update_task(
         # Add new tags
         for tag_name in task_data.tags:
             if tag_name.strip():  # Only add non-empty tags
-                tag = TaskTag(
-                    task_id=task.id,
-                    tag_name=tag_name.strip()
-                )
+                tag = TaskTag(task_id=task.id, tag_name=tag_name.strip())
                 session.add(tag)
 
     session.add(task)
@@ -216,9 +209,7 @@ def delete_task(session: Session, task_id: UUID, user_id: UUID) -> bool:
         return False
 
     # Delete associated tags first
-    task_tags = session.exec(
-        select(TaskTag).where(TaskTag.task_id == task.id)
-    ).all()
+    task_tags = session.exec(select(TaskTag).where(TaskTag.task_id == task.id)).all()
     for tag in task_tags:
         session.delete(tag)
 

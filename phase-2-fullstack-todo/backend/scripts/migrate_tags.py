@@ -4,8 +4,9 @@ Updates old tag names to new generic names in the database
 Run this script once to migrate all existing task tags
 """
 
-import sys
 import os
+import sys
+
 from sqlmodel import Session, select
 
 # Add parent directory to path to import models
@@ -13,7 +14,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from db import engine
 from models import TaskTag
-from sqlmodel import Session
 
 # Tag mapping: old_name -> new_name
 TAG_MAPPING = {
@@ -62,7 +62,7 @@ def migrate_tags():
         # Commit all changes
         session.commit()
 
-        print(f"\n✅ Migration complete!")
+        print("\n✅ Migration complete!")
         print(f"Total tags migrated: {updated_count}")
         print(f"Tags unchanged: {len(tags) - updated_count}")
 
@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
     response = input("\nProceed with migration? (yes/no): ")
 
-    if response.lower() in ['yes', 'y']:
+    if response.lower() in ["yes", "y"]:
         migrate_tags()
     else:
         print("Migration cancelled")

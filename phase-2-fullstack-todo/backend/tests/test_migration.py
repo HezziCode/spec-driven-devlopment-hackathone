@@ -4,23 +4,28 @@ Tests for database migration script.
 Verifies that migration creates tables, indexes, and constraints correctly.
 """
 
-import pytest
-from sqlmodel import Session, text, select
-from sqlalchemy.exc import IntegrityError
 from uuid import uuid4
 
-from models import User, Task, TaskTag
+import pytest
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session, select, text
+
+from models import Task, TaskTag, User
 
 
 def test_migration_creates_all_tables(engine, test_tables):
     """Test that migration creates all required tables."""
     with Session(engine) as session:
         # Query for table existence (SQLite uses sqlite_master)
-        result = session.exec(text("""
+        result = session.exec(
+            text(
+                """
             SELECT name FROM sqlite_master
             WHERE type='table'
             AND name IN ('users', 'tasks', 'task_tags')
-        """))
+        """
+            )
+        )
 
         tables = {row[0] for row in result}
 
@@ -35,9 +40,7 @@ def test_migration_creates_users_table_columns(engine, test_tables):
     with Session(engine) as session:
         # Insert a test user to verify columns exist
         user = User(
-            username="testuser",
-            email="test@example.com",
-            password_hash="hashed123"
+            username="testuser", email="test@example.com", password_hash="hashed123"
         )
         session.add(user)
         session.commit()
@@ -59,9 +62,7 @@ def test_migration_creates_tasks_table_columns(engine, test_tables, session):
     """Test that tasks table has all required columns."""
     # Create a user first
     user = User(
-        username="taskuser",
-        email="taskuser@example.com",
-        password_hash="hashed456"
+        username="taskuser", email="taskuser@example.com", password_hash="hashed456"
     )
     session.add(user)
     session.commit()
@@ -72,7 +73,7 @@ def test_migration_creates_tasks_table_columns(engine, test_tables, session):
         title="Test Task",
         description="Test Description",
         completed=False,
-        priority="high"
+        priority="high",
     )
     session.add(task)
     session.commit()
@@ -93,27 +94,19 @@ def test_migration_creates_task_tags_table_columns(engine, test_tables, session)
     """Test that task_tags table has all required columns."""
     # Create user and task first
     user = User(
-        username="taguser",
-        email="taguser@example.com",
-        password_hash="hashed789"
+        username="taguser", email="taguser@example.com", password_hash="hashed789"
     )
     session.add(user)
     session.commit()
 
     task = Task(
-        user_id=user.id,
-        title="Tagged Task",
-        completed=False,
-        priority="medium"
+        user_id=user.id, title="Tagged Task", completed=False, priority="medium"
     )
     session.add(task)
     session.commit()
 
     # Create a task tag
-    tag = TaskTag(
-        task_id=task.id,
-        tag_name="urgent"
-    )
+    tag = TaskTag(task_id=task.id, tag_name="urgent")
     session.add(tag)
     session.commit()
 
@@ -138,11 +131,15 @@ def test_migration_idempotent(engine):
 
     # Verify tables still exist
     with Session(engine) as session:
-        result = session.exec(text("""
+        result = session.exec(
+            text(
+                """
             SELECT name FROM sqlite_master
             WHERE type='table'
             AND name IN ('users', 'tasks', 'task_tags')
-        """))
+        """
+            )
+        )
 
         tables = {row[0] for row in result}
         assert len(tables) == 3
@@ -151,11 +148,7 @@ def test_migration_idempotent(engine):
 def test_unique_constraints_enforced_username(engine, test_tables, session):
     """Test that unique constraint on username is enforced."""
     # Create first user
-    user1 = User(
-        username="duplicate",
-        email="user1@example.com",
-        password_hash="hash1"
-    )
+    user1 = User(username="duplicate", email="user1@example.com", password_hash="hash1")
     session.add(user1)
     session.commit()
 
@@ -163,7 +156,7 @@ def test_unique_constraints_enforced_username(engine, test_tables, session):
     user2 = User(
         username="duplicate",  # Same username
         email="user2@example.com",
-        password_hash="hash2"
+        password_hash="hash2",
     )
     session.add(user2)
 
@@ -175,11 +168,7 @@ def test_unique_constraints_enforced_username(engine, test_tables, session):
 def test_unique_constraints_enforced_email(engine, test_tables, session):
     """Test that unique constraint on email is enforced."""
     # Create first user
-    user1 = User(
-        username="user1",
-        email="duplicate@example.com",
-        password_hash="hash1"
-    )
+    user1 = User(username="user1", email="duplicate@example.com", password_hash="hash1")
     session.add(user1)
     session.commit()
 
@@ -187,7 +176,7 @@ def test_unique_constraints_enforced_email(engine, test_tables, session):
     user2 = User(
         username="user2",
         email="duplicate@example.com",  # Same email
-        password_hash="hash2"
+        password_hash="hash2",
     )
     session.add(user2)
 
@@ -205,7 +194,7 @@ def test_foreign_key_constraints_enforced_task_user(engine, test_tables, session
         user_id=non_existent_user_id,
         title="Orphan Task",
         completed=False,
-        priority="low"
+        priority="low",
     )
     session.add(task)
 
@@ -227,10 +216,7 @@ def test_foreign_key_constraints_enforced_tasktag_task(engine, test_tables, sess
     # Attempt to create task tag with non-existent task_id
     non_existent_task_id = uuid4()
 
-    tag = TaskTag(
-        task_id=non_existent_task_id,
-        tag_name="orphan"
-    )
+    tag = TaskTag(task_id=non_existent_task_id, tag_name="orphan")
     session.add(tag)
 
     # Should raise IntegrityError (in databases that support FK constraints)
@@ -244,35 +230,25 @@ def test_foreign_key_constraints_enforced_tasktag_task(engine, test_tables, sess
 def test_task_tag_unique_constraint(engine, test_tables, session):
     """Test that unique constraint on (task_id, tag_name) is enforced."""
     # Create user and task
-    user = User(
-        username="uniqueuser",
-        email="unique@example.com",
-        password_hash="hash"
-    )
+    user = User(username="uniqueuser", email="unique@example.com", password_hash="hash")
     session.add(user)
     session.commit()
 
     task = Task(
-        user_id=user.id,
-        title="Unique Tag Task",
-        completed=False,
-        priority="medium"
+        user_id=user.id, title="Unique Tag Task", completed=False, priority="medium"
     )
     session.add(task)
     session.commit()
 
     # Add first tag
-    tag1 = TaskTag(
-        task_id=task.id,
-        tag_name="duplicate-tag"
-    )
+    tag1 = TaskTag(task_id=task.id, tag_name="duplicate-tag")
     session.add(tag1)
     session.commit()
 
     # Attempt to add same tag to same task
     tag2 = TaskTag(
         task_id=task.id,
-        tag_name="duplicate-tag"  # Same task_id and tag_name
+        tag_name="duplicate-tag",  # Same task_id and tag_name
     )
     session.add(tag2)
 
@@ -284,20 +260,11 @@ def test_task_tag_unique_constraint(engine, test_tables, session):
 def test_cascade_delete_behavior(engine, test_tables, session):
     """Test cascade delete behavior (if configured)."""
     # Create user with task
-    user = User(
-        username="deleteuser",
-        email="delete@example.com",
-        password_hash="hash"
-    )
+    user = User(username="deleteuser", email="delete@example.com", password_hash="hash")
     session.add(user)
     session.commit()
 
-    task = Task(
-        user_id=user.id,
-        title="Delete Task",
-        completed=False,
-        priority="low"
-    )
+    task = Task(user_id=user.id, title="Delete Task", completed=False, priority="low")
     session.add(task)
     session.commit()
 
@@ -326,26 +293,12 @@ def test_cascade_delete_behavior(engine, test_tables, session):
 def test_user_task_relationship(engine, test_tables, session):
     """Test that user-task relationship works correctly."""
     # Create user with tasks
-    user = User(
-        username="reluser",
-        email="rel@example.com",
-        password_hash="hash"
-    )
+    user = User(username="reluser", email="rel@example.com", password_hash="hash")
     session.add(user)
     session.commit()
 
-    task1 = Task(
-        user_id=user.id,
-        title="Task 1",
-        completed=False,
-        priority="high"
-    )
-    task2 = Task(
-        user_id=user.id,
-        title="Task 2",
-        completed=True,
-        priority="low"
-    )
+    task1 = Task(user_id=user.id, title="Task 1", completed=False, priority="high")
+    task2 = Task(user_id=user.id, title="Task 2", completed=True, priority="low")
     session.add(task1)
     session.add(task2)
     session.commit()
@@ -362,19 +315,12 @@ def test_user_task_relationship(engine, test_tables, session):
 def test_task_tags_relationship(engine, test_tables, session):
     """Test that task-tags relationship works correctly."""
     # Create user, task, and tags
-    user = User(
-        username="tagreluser",
-        email="tagrel@example.com",
-        password_hash="hash"
-    )
+    user = User(username="tagreluser", email="tagrel@example.com", password_hash="hash")
     session.add(user)
     session.commit()
 
     task = Task(
-        user_id=user.id,
-        title="Tagged Task",
-        completed=False,
-        priority="medium"
+        user_id=user.id, title="Tagged Task", completed=False, priority="medium"
     )
     session.add(task)
     session.commit()

@@ -7,9 +7,7 @@ and attaches user context to requests.
 
 import pytest
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
-from datetime import datetime
 
 
 class TestAuthMiddleware:
@@ -34,7 +32,7 @@ class TestAuthMiddleware:
             return {
                 "message": "success",
                 "user_id": getattr(request.state, "user_id", None),
-                "email": getattr(request.state, "email", None)
+                "email": getattr(request.state, "email", None),
             }
 
         @app.get("/auth/login")
@@ -80,10 +78,7 @@ class TestAuthMiddleware:
         token = generate_valid_jwt(user_id="user-123", email="test@example.com")
 
         # Act
-        response = client.get(
-            "/api/test",
-            headers={"Authorization": f"Bearer {token}"}
-        )
+        response = client.get("/api/test", headers={"Authorization": f"Bearer {token}"})
 
         # Assert
         assert response.status_code == 200
@@ -125,10 +120,7 @@ class TestAuthMiddleware:
         token = generate_expired_jwt()
 
         # Act
-        response = client.get(
-            "/api/test",
-            headers={"Authorization": f"Bearer {token}"}
-        )
+        response = client.get("/api/test", headers={"Authorization": f"Bearer {token}"})
 
         # Assert
         assert response.status_code == 401
@@ -149,16 +141,15 @@ class TestAuthMiddleware:
         token = generate_invalid_jwt()
 
         # Act
-        response = client.get(
-            "/api/test",
-            headers={"Authorization": f"Bearer {token}"}
-        )
+        response = client.get("/api/test", headers={"Authorization": f"Bearer {token}"})
 
         # Assert
         assert response.status_code == 401
         data = response.json()
         assert "error" in data
-        assert "invalid" in data["error"].lower() or "signature" in data["error"].lower()
+        assert (
+            "invalid" in data["error"].lower() or "signature" in data["error"].lower()
+        )
 
     def test_malformed_header_returns_400(self, client):
         """
@@ -179,13 +170,13 @@ class TestAuthMiddleware:
 
         for header_value in malformed_headers:
             # Act
-            response = client.get(
-                "/api/test",
-                headers={"Authorization": header_value}
-            )
+            response = client.get("/api/test", headers={"Authorization": header_value})
 
             # Assert
-            assert response.status_code in [400, 401], f"Failed for header: {header_value}"
+            assert response.status_code in [
+                400,
+                401,
+            ], f"Failed for header: {header_value}"
             data = response.json()
             assert "error" in data
 
@@ -221,10 +212,7 @@ class TestAuthMiddleware:
         token = generate_valid_jwt(user_id=user_id, email=email)
 
         # Act
-        response = client.get(
-            "/api/test",
-            headers={"Authorization": f"Bearer {token}"}
-        )
+        response = client.get("/api/test", headers={"Authorization": f"Bearer {token}"})
 
         # Assert
         assert response.status_code == 200

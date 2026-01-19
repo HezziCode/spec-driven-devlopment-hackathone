@@ -5,10 +5,12 @@ Tools use @function_tool decorator from OpenAI Agents SDK.
 """
 
 import logging
+
 import httpx
-from agents import function_tool, RunContextWrapper
+from agents import RunContextWrapper, function_tool
+
 from .context import AgentContext
-from .schemas import TaskOperationResult, TaskListResult, TaskInfo
+from .schemas import TaskInfo, TaskListResult, TaskOperationResult
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,7 @@ async def create_task(
     title: str,
     description: str = "",
     tags: list[str] = None,
-    priority: str = "medium"
+    priority: str = "medium",
 ) -> TaskOperationResult:
     """Create a new task for the user from chat conversation.
 
@@ -33,7 +35,9 @@ async def create_task(
     Returns:
         TaskOperationResult with task_id, status, and title
     """
-    logger.info(f"create_task: Creating task '{title}' for user {ctx.context.user_id} from chat with tags={tags}")
+    logger.info(
+        f"create_task: Creating task '{title}' for user {ctx.context.user_id} from chat with tags={tags}"
+    )
     # Call direct AI tools endpoint for task creation
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
@@ -46,18 +50,20 @@ async def create_task(
                     "tags": tags or [],
                     "priority": priority,
                     "source": "chat",  # Mark as chat-created
-                    "thread_id": ctx.context.conversation_id  # Link to chat thread
-                }
+                    "thread_id": ctx.context.conversation_id,  # Link to chat thread
+                },
             )
             response.raise_for_status()
 
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"create_task: Successfully created task {data.get('task_id')} for user {ctx.context.user_id}")
+                logger.info(
+                    f"create_task: Successfully created task {data.get('task_id')} for user {ctx.context.user_id}"
+                )
                 return TaskOperationResult(
                     task_id=data.get("task_id", ""),
                     status=data.get("status", "created"),
-                    title=data.get("title", title)
+                    title=data.get("title", title),
                 )
             else:
                 error_msg = f"Failed to create task: HTTP {response.status_code}"
@@ -76,8 +82,7 @@ async def create_task(
 
 @function_tool
 async def list_tasks(
-    ctx: RunContextWrapper[AgentContext],
-    status: str = "all"
+    ctx: RunContextWrapper[AgentContext], status: str = "all"
 ) -> TaskListResult:
     """List all tasks for the user.
 
@@ -88,16 +93,15 @@ async def list_tasks(
     Returns:
         TaskListResult with tasks list and total count
     """
-    logger.info(f"list_tasks: Listing tasks for user {ctx.context.user_id} with status={status}")
+    logger.info(
+        f"list_tasks: Listing tasks for user {ctx.context.user_id} with status={status}"
+    )
     # Call AI tools endpoint (no auth required)
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
             response = await client.post(
                 f"{ctx.context.mcp_base_url}/api/ai/tasks/list",
-                json={
-                    "user_id": ctx.context.user_id,
-                    "status": status
-                }
+                json={"user_id": ctx.context.user_id, "status": status},
             )
             response.raise_for_status()
 
@@ -111,11 +115,13 @@ async def list_tasks(
                         completed=task.get("completed", False),
                         priority=task.get("priority", "medium"),
                         created_at=task.get("created_at", ""),
-                        updated_at=task.get("updated_at", "")
+                        updated_at=task.get("updated_at", ""),
                     )
                     for task in data.get("tasks", [])
                 ]
-                logger.info(f"list_tasks: Successfully listed {len(tasks)} tasks for user {ctx.context.user_id}")
+                logger.info(
+                    f"list_tasks: Successfully listed {len(tasks)} tasks for user {ctx.context.user_id}"
+                )
                 return TaskListResult(tasks=tasks, total=data.get("total", len(tasks)))
             else:
                 error_msg = "Failed to list tasks"
@@ -133,10 +139,7 @@ async def list_tasks(
 
 
 @function_tool
-async def get_task(
-    ctx: RunContextWrapper[AgentContext],
-    task_id: str
-) -> TaskInfo:
+async def get_task(ctx: RunContextWrapper[AgentContext], task_id: str) -> TaskInfo:
     """Retrieve a specific task for the user.
 
     Args:
@@ -152,15 +155,15 @@ async def get_task(
         try:
             response = await client.post(
                 f"{ctx.context.mcp_base_url}/api/ai/tasks/{task_id}/get",
-                json={
-                    "user_id": ctx.context.user_id
-                }
+                json={"user_id": ctx.context.user_id},
             )
             response.raise_for_status()
 
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"get_task: Successfully retrieved task {task_id} for user {ctx.context.user_id}")
+                logger.info(
+                    f"get_task: Successfully retrieved task {task_id} for user {ctx.context.user_id}"
+                )
                 return TaskInfo(
                     id=data.get("id", task_id),
                     title=data.get("title", ""),
@@ -168,7 +171,7 @@ async def get_task(
                     completed=data.get("completed", False),
                     priority=data.get("priority", "medium"),
                     created_at=data.get("created_at", ""),
-                    updated_at=data.get("updated_at", "")
+                    updated_at=data.get("updated_at", ""),
                 )
             else:
                 error_msg = "Task not found"
@@ -187,8 +190,7 @@ async def get_task(
 
 @function_tool
 async def mark_complete(
-    ctx: RunContextWrapper[AgentContext],
-    task_id: str
+    ctx: RunContextWrapper[AgentContext], task_id: str
 ) -> TaskOperationResult:
     """Mark a task as completed.
 
@@ -199,25 +201,25 @@ async def mark_complete(
     Returns:
         TaskOperationResult with task_id, status, and title
     """
-    logger.info(f"mark_complete: Marking task {task_id} as complete for user {ctx.context.user_id}")
+    logger.info(
+        f"mark_complete: Marking task {task_id} as complete for user {ctx.context.user_id}"
+    )
     # Call AI tools endpoint (no auth required)
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
             response = await client.post(
                 f"{ctx.context.mcp_base_url}/api/ai/tasks/{task_id}/complete",
-                json={
-                    "user_id": ctx.context.user_id
-                }
+                json={"user_id": ctx.context.user_id},
             )
             response.raise_for_status()
 
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"mark_complete: Successfully marked task {task_id} as complete for user {ctx.context.user_id}")
+                logger.info(
+                    f"mark_complete: Successfully marked task {task_id} as complete for user {ctx.context.user_id}"
+                )
                 return TaskOperationResult(
-                    task_id=task_id,
-                    status="completed",
-                    title=data.get("title", "Task")
+                    task_id=task_id, status="completed", title=data.get("title", "Task")
                 )
             else:
                 error_msg = "Task not found"
@@ -239,7 +241,7 @@ async def update_task(
     ctx: RunContextWrapper[AgentContext],
     task_id: str,
     title: str = None,
-    description: str = None
+    description: str = None,
 ) -> TaskOperationResult:
     """Update an existing task.
 
@@ -261,18 +263,20 @@ async def update_task(
                 json={
                     "user_id": ctx.context.user_id,
                     "title": title,
-                    "description": description
-                }
+                    "description": description,
+                },
             )
             response.raise_for_status()
 
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"update_task: Successfully updated task {task_id} for user {ctx.context.user_id}")
+                logger.info(
+                    f"update_task: Successfully updated task {task_id} for user {ctx.context.user_id}"
+                )
                 return TaskOperationResult(
                     task_id=task_id,
                     status="updated",
-                    title=data.get("title", title or "Task")
+                    title=data.get("title", title or "Task"),
                 )
             else:
                 error_msg = "Task not found"
@@ -291,8 +295,7 @@ async def update_task(
 
 @function_tool
 async def delete_task(
-    ctx: RunContextWrapper[AgentContext],
-    task_id: str
+    ctx: RunContextWrapper[AgentContext], task_id: str
 ) -> TaskOperationResult:
     """Delete a task.
 
@@ -310,19 +313,17 @@ async def delete_task(
             response = await client.request(
                 method="DELETE",
                 url=f"{ctx.context.mcp_base_url}/api/ai/tasks/{task_id}",
-                json={
-                    "user_id": ctx.context.user_id
-                }
+                json={"user_id": ctx.context.user_id},
             )
             response.raise_for_status()
 
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"delete_task: Successfully deleted task {task_id} for user {ctx.context.user_id}")
+                logger.info(
+                    f"delete_task: Successfully deleted task {task_id} for user {ctx.context.user_id}"
+                )
                 return TaskOperationResult(
-                    task_id=task_id,
-                    status="deleted",
-                    title=data.get("title", "Task")
+                    task_id=task_id, status="deleted", title=data.get("title", "Task")
                 )
             else:
                 error_msg = "Task not found"
@@ -341,8 +342,7 @@ async def delete_task(
 
 @function_tool
 async def delete_task_by_name(
-    ctx: RunContextWrapper[AgentContext],
-    task_name: str
+    ctx: RunContextWrapper[AgentContext], task_name: str
 ) -> TaskOperationResult:
     """Delete a task by its name.
 
@@ -353,26 +353,27 @@ async def delete_task_by_name(
     Returns:
         TaskOperationResult with task_id and deletion status
     """
-    logger.info(f"delete_task_by_name: Deleting task '{task_name}' for user {ctx.context.user_id}")
+    logger.info(
+        f"delete_task_by_name: Deleting task '{task_name}' for user {ctx.context.user_id}"
+    )
     # Call AI tools endpoint (no auth required)
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
             response = await client.post(
                 f"{ctx.context.mcp_base_url}/api/ai/tasks/delete-by-name",
-                json={
-                    "user_id": ctx.context.user_id,
-                    "task_name": task_name
-                }
+                json={"user_id": ctx.context.user_id, "task_name": task_name},
             )
             response.raise_for_status()
 
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"delete_task_by_name: Successfully deleted task '{task_name}' for user {ctx.context.user_id}")
+                logger.info(
+                    f"delete_task_by_name: Successfully deleted task '{task_name}' for user {ctx.context.user_id}"
+                )
                 return TaskOperationResult(
                     task_id=data.get("task_id", ""),
                     status="deleted",
-                    title=data.get("title", task_name)
+                    title=data.get("title", task_name),
                 )
             else:
                 error_msg = f"Task '{task_name}' not found"
@@ -391,8 +392,7 @@ async def delete_task_by_name(
 
 @function_tool
 async def search_tasks(
-    ctx: RunContextWrapper[AgentContext],
-    query: str
+    ctx: RunContextWrapper[AgentContext], query: str
 ) -> TaskListResult:
     """Search tasks by keyword.
 
@@ -403,16 +403,15 @@ async def search_tasks(
     Returns:
         TaskListResult with matching tasks list and total count
     """
-    logger.info(f"search_tasks: Searching tasks with query '{query}' for user {ctx.context.user_id}")
+    logger.info(
+        f"search_tasks: Searching tasks with query '{query}' for user {ctx.context.user_id}"
+    )
     # Call AI tools endpoint (no auth required)
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
             response = await client.post(
                 f"{ctx.context.mcp_base_url}/api/ai/tasks/search",
-                json={
-                    "user_id": ctx.context.user_id,
-                    "query": query
-                }
+                json={"user_id": ctx.context.user_id, "query": query},
             )
             response.raise_for_status()
 
@@ -426,11 +425,13 @@ async def search_tasks(
                         completed=task.get("completed", False),
                         priority=task.get("priority", "medium"),
                         created_at=task.get("created_at", ""),
-                        updated_at=task.get("updated_at", "")
+                        updated_at=task.get("updated_at", ""),
                     )
                     for task in data.get("tasks", [])
                 ]
-                logger.info(f"search_tasks: Found {len(tasks)} tasks matching '{query}' for user {ctx.context.user_id}")
+                logger.info(
+                    f"search_tasks: Found {len(tasks)} tasks matching '{query}' for user {ctx.context.user_id}"
+                )
                 return TaskListResult(tasks=tasks, total=data.get("total", len(tasks)))
             else:
                 error_msg = "Failed to search tasks"

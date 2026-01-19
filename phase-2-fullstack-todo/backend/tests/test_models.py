@@ -4,13 +4,13 @@ Tests for database models.
 Verifies model structure, fields, relationships, and constraints.
 """
 
-import pytest
-from uuid import UUID
 from datetime import datetime
 from typing import get_type_hints
+from uuid import UUID
+
 from sqlalchemy import Index, UniqueConstraint
 
-from models import User, Task, TaskTag, PriorityEnum
+from models import PriorityEnum, Task, TaskTag, User
 
 
 def test_user_model_fields():
@@ -19,7 +19,7 @@ def test_user_model_fields():
     user = User(
         username="testuser",
         email="test@example.com",
-        password_hash="hashed_password_123"
+        password_hash="hashed_password_123",
     )
 
     # Verify field values
@@ -62,7 +62,7 @@ def test_task_model_fields():
         title="Test Task",
         description="Test Description",
         completed=False,
-        priority="medium"
+        priority="medium",
     )
 
     # Verify field values
@@ -126,10 +126,7 @@ def test_tasktag_model_fields():
 
     # Create a task tag instance
     task_id = uuid4()
-    tag = TaskTag(
-        task_id=task_id,
-        tag_name="urgent"
-    )
+    tag = TaskTag(task_id=task_id, tag_name="urgent")
 
     # Verify field values
     assert isinstance(tag.id, UUID)
@@ -213,10 +210,7 @@ def test_task_default_values():
     from uuid import uuid4
 
     user_id = uuid4()
-    task = Task(
-        user_id=user_id,
-        title="Test Task"
-    )
+    task = Task(user_id=user_id, title="Test Task")
 
     # Verify defaults
     assert task.completed is False
@@ -229,15 +223,11 @@ def test_user_unique_fields():
     # This is verified by the Field definitions in the model
     # The unique=True parameter on username and email ensures uniqueness
     user1 = User(
-        username="unique_user",
-        email="unique@example.com",
-        password_hash="hash123"
+        username="unique_user", email="unique@example.com", password_hash="hash123"
     )
 
     user2 = User(
-        username="unique_user2",
-        email="unique2@example.com",
-        password_hash="hash456"
+        username="unique_user2", email="unique2@example.com", password_hash="hash456"
     )
 
     # Verify both users can be created with unique values

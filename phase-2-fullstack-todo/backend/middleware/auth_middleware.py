@@ -8,12 +8,13 @@ Attaches user context to request.state for use in route handlers.
 import os
 import warnings
 from datetime import datetime, timezone
-from typing import Callable, Any
-from fastapi import Request, Response, Depends
-from fastapi.responses import JSONResponse
-from jose import jwt, JWTError
-from jose.exceptions import ExpiredSignatureError
+from typing import Any, Callable
+
 from dotenv import load_dotenv
+from fastapi import Request, Response
+from fastapi.responses import JSONResponse
+from jose import JWTError, jwt
+from jose.exceptions import ExpiredSignatureError
 
 # Load environment variables
 load_dotenv()
@@ -25,6 +26,7 @@ BETTER_AUTH_SECRET = os.getenv("BETTER_AUTH_SECRET")
 if not BETTER_AUTH_SECRET:
     # For testing, use a default secret if not set
     import warnings
+
     warnings.warn("BETTER_AUTH_SECRET not set, using default for testing")
     BETTER_AUTH_SECRET = "test-secret-key-at-least-32-characters-long-for-testing"
     # raise ValueError(
@@ -37,6 +39,7 @@ if not BETTER_AUTH_SECRET:
 if len(BETTER_AUTH_SECRET) < 32:
     # For testing, use a default secret if too short
     import warnings
+
     warnings.warn("BETTER_AUTH_SECRET too short, using default for testing")
     BETTER_AUTH_SECRET = "test-secret-key-at-least-32-characters-long-for-testing"
     # raise ValueError(
@@ -54,7 +57,7 @@ PUBLIC_PATHS = [
     "/openapi.json",
     "/health",
     "/mcp/",  # MCP server endpoint for internal agent tool calls
-    "/api/ai/"  # AI tools endpoint for internal agent calls (bypasses auth since agent provides user_id)
+    "/api/ai/",  # AI tools endpoint for internal agent calls (bypasses auth since agent provides user_id)
 ]
 
 # Exact match paths (no prefix matching)
@@ -62,9 +65,7 @@ EXACT_PUBLIC_PATHS = ["/"]
 
 
 def create_error_response(
-    error_message: str,
-    error_code: str,
-    status_code: int
+    error_message: str, error_code: str, status_code: int
 ) -> JSONResponse:
     """
     Create a standardized error response for authentication failures.
@@ -89,14 +90,13 @@ def create_error_response(
         content={
             "error": error_message,
             "code": error_code,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
     )
 
 
 async def verify_jwt_middleware(
-    request: Request,
-    call_next: Callable[[Request], Any]
+    request: Request, call_next: Callable[[Request], Any]
 ) -> Response:
     """
     FastAPI middleware for JWT token verification.
@@ -160,7 +160,7 @@ async def verify_jwt_middleware(
         return create_error_response(
             error_message="Authorization header is required",
             error_code="MISSING_TOKEN",
-            status_code=401
+            status_code=401,
         )
 
     # Validate "Bearer <token>" format
@@ -169,7 +169,7 @@ async def verify_jwt_middleware(
         return create_error_response(
             error_message="Invalid Authorization header format. Expected: Bearer <token>",
             error_code="MALFORMED_HEADER",
-            status_code=400
+            status_code=400,
         )
 
     token = parts[1]
@@ -179,17 +179,13 @@ async def verify_jwt_middleware(
         return create_error_response(
             error_message="Token cannot be empty",
             error_code="EMPTY_TOKEN",
-            status_code=400
+            status_code=400,
         )
 
     # Verify and decode JWT token
     try:
         # Decode token using BETTER_AUTH_SECRET
-        payload = jwt.decode(
-            token,
-            BETTER_AUTH_SECRET,
-            algorithms=["HS256"]
-        )
+        payload = jwt.decode(token, BETTER_AUTH_SECRET, algorithms=["HS256"])
 
         # Extract user information from payload
         user_id = payload.get("sub")
@@ -200,7 +196,7 @@ async def verify_jwt_middleware(
             return create_error_response(
                 error_message="Token is missing required 'sub' claim (user ID)",
                 error_code="INVALID_TOKEN_CLAIMS",
-                status_code=401
+                status_code=401,
             )
 
         # Attach user context to request.state
@@ -216,7 +212,7 @@ async def verify_jwt_middleware(
         return create_error_response(
             error_message="Token has expired",
             error_code="TOKEN_EXPIRED",
-            status_code=401
+            status_code=401,
         )
 
     except JWTError as e:
@@ -224,7 +220,7 @@ async def verify_jwt_middleware(
         return create_error_response(
             error_message=f"Invalid token signature: {str(e)}",
             error_code="INVALID_TOKEN_SIGNATURE",
-            status_code=401
+            status_code=401,
         )
 
     except Exception as e:
@@ -232,7 +228,7 @@ async def verify_jwt_middleware(
         return create_error_response(
             error_message=f"Authentication error: {str(e)}",
             error_code="AUTHENTICATION_ERROR",
-            status_code=401
+            status_code=401,
         )
 
 
@@ -282,14 +278,8 @@ async def get_current_user(request: Request) -> dict:
     Raises:
         HTTPException 401: If user is not authenticated.
     """
-    if not hasattr(request.state, 'user_id') or request.state.user_id is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Not authenticated"
-        )
+    if not hasattr(request.state, "user_id") or request.state.user_id is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
     # Return user information from the request state
-    return {
-        "id": request.state.user_id,
-        "email": getattr(request.state, 'email', None)
-    }
+    return {"id": request.state.user_id, "email": getattr(request.state, "email", None)}

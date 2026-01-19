@@ -5,12 +5,13 @@ Handles business logic for user profile operations including
 retrieval and updates with duplicate checking.
 """
 
-from sqlmodel import Session, select
-from sqlalchemy import func
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
+
 from fastapi import HTTPException
+from sqlalchemy import func
+from sqlmodel import Session, select
 
 from models import User
 from schemas.user import UpdateUserRequest
@@ -71,7 +72,8 @@ def update_user_profile(
         ).first()
         if existing:
             raise HTTPException(
-                status_code=409, detail=f"Username '{request.username}' is already taken"
+                status_code=409,
+                detail=f"Username '{request.username}' is already taken",
             )
         user.username = request.username
 

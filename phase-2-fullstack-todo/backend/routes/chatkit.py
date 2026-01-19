@@ -1,27 +1,26 @@
 """ChatKit API routes for streaming chat and thread management."""
 
 import logging
-from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
-from sse_starlette.sse import EventSourceResponse
 from sqlmodel import Session
+from sse_starlette.sse import EventSourceResponse
 
-from middleware.auth_middleware import get_current_user, get_user_id_from_token
 from db import get_session
-from schemas.chatkit import (
-    SessionResponse,
-    ThreadSyncRequest,
-    ThreadItemResponse,
-    ThreadListResponseV2,
-)
+from middleware.auth_middleware import get_current_user, get_user_id_from_token
 from schemas import (
     ChatKitRequest,
     ErrorResponse,
     ThreadListResponse,
     ThreadResponse,
+)
+from schemas.chatkit import (
+    SessionResponse,
+    ThreadItemResponse,
+    ThreadListResponseV2,
+    ThreadSyncRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -79,7 +78,7 @@ async def send_message(
             yield f"event: error\ndata: {str(e)}\n\n"
         except Exception as e:
             logger.exception(f"Unexpected chat error: {e}")
-            yield f"event: error\ndata: Internal server error\n\n"
+            yield "event: error\ndata: Internal server error\n\n"
 
     return EventSourceResponse(
         generate_events(),
@@ -127,7 +126,10 @@ async def list_threads(
     responses={
         200: {"description": "Thread with messages"},
         401: {"model": ErrorResponse, "description": "Not authenticated"},
-        403: {"model": ErrorResponse, "description": "Not authorized to access this thread"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Not authorized to access this thread",
+        },
         404: {"model": ErrorResponse, "description": "Thread not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
@@ -168,7 +170,10 @@ async def get_thread(
     responses={
         204: {"description": "Thread deleted successfully"},
         401: {"model": ErrorResponse, "description": "Not authenticated"},
-        403: {"model": ErrorResponse, "description": "Not authorized to delete this thread"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Not authorized to delete this thread",
+        },
         404: {"model": ErrorResponse, "description": "Thread not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
@@ -201,6 +206,7 @@ async def delete_thread(
 
 # ==================== ChatKit Session Management Endpoints ====================
 
+
 @router.post(
     "/chatkit/session",
     response_model=SessionResponse,
@@ -226,8 +232,7 @@ async def create_session(
     except Exception as e:
         logger.exception(f"Failed to create ChatKit session: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create session: {str(e)}"
+            status_code=500, detail=f"Failed to create session: {str(e)}"
         )
 
 
@@ -275,10 +280,7 @@ async def list_user_threads(
         return ThreadListResponseV2(threads=thread_items, total=total)
     except Exception as e:
         logger.exception(f"Failed to list threads: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to list threads: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to list threads: {str(e)}")
 
 
 @router.post(
@@ -321,10 +323,7 @@ async def sync_thread_endpoint(
         )
     except Exception as e:
         logger.exception(f"Failed to sync thread: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to sync thread: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to sync thread: {str(e)}")
 
 
 @router.delete(
@@ -362,6 +361,5 @@ async def delete_user_thread(
     except Exception as e:
         logger.exception(f"Failed to delete thread: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to delete thread: {str(e)}"
+            status_code=500, detail=f"Failed to delete thread: {str(e)}"
         )
