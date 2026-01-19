@@ -82,7 +82,7 @@ const apiRequest = async <T>(
 
       if (isErrorObject(errorData)) {
         // Handle nested format: {detail: {error: "...", code: "..."}}
-        if (errorData.detail && typeof errorData.detail === 'object' && errorData.detail !== null) {
+        if ('detail' in errorData && errorData.detail && typeof errorData.detail === 'object' && errorData.detail !== null) {
           const detail = errorData.detail as Record<string, unknown>;
           errorMessage = (detail.error as string) || (detail.message as string) || errorMessage;
           errorCode = (detail.code as string) || errorCode;
