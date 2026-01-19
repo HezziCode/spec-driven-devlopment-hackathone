@@ -5,7 +5,7 @@
  * and thread persistence. All functions use JWT authentication.
  */
 
-import { getAuthToken, getCurrentUserId } from './auth';
+import { getAuthToken } from './auth';
 
 /**
  * Backend API base URL
