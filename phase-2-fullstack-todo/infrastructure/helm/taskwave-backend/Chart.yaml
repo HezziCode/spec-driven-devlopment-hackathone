@@ -1,0 +1,13 @@
+apiVersion: v2
+name: taskwave-backend
+description: A Helm chart for TaskWave Backend (FastAPI)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: TaskWave Team
+keywords:
+  - taskwave
+  - backend
+  - fastapi
+  - api

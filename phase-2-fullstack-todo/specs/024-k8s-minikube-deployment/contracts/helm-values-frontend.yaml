@@ -1,0 +1,66 @@
+# Helm Values Contract: taskwave-frontend
+# This defines the expected structure of values.yaml for the frontend Helm chart
+
+# Image configuration
+image:
+  repository: taskwave-frontend
+  tag: latest
+  pullPolicy: IfNotPresent  # Use Never for Minikube local images
+
+# Replica configuration
+replicaCount: 2
+
+# Service configuration
+service:
+  type: NodePort
+  port: 80
+  targetPort: 3000
+  nodePort: 30080  # Optional: specific node port
+
+# Resource limits
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Health probes
+livenessProbe:
+  httpGet:
+    path: /
+    port: 3000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  failureThreshold: 3
+
+# ConfigMap values (non-sensitive)
+config:
+  NEXT_PUBLIC_API_URL: "http://taskwave-backend:8000"
+
+# Secret values (sensitive - should be overridden or use external secrets)
+secrets:
+  BETTER_AUTH_SECRET: ""  # Required: JWT secret
+  NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID: ""  # Required: Google OAuth
+  GOOGLE_OAUTH_CLIENT_SECRET: ""  # Required: Google OAuth
+
+# Pod annotations
+podAnnotations: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}

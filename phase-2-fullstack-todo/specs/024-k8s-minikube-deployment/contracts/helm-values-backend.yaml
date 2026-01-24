@@ -1,0 +1,70 @@
+# Helm Values Contract: taskwave-backend
+# This defines the expected structure of values.yaml for the backend Helm chart
+
+# Image configuration
+image:
+  repository: taskwave-backend
+  tag: latest
+  pullPolicy: IfNotPresent  # Use Never for Minikube local images
+
+# Replica configuration
+replicaCount: 2
+
+# Service configuration
+service:
+  type: ClusterIP  # Internal service, frontend connects via DNS
+  port: 8000
+  targetPort: 8000
+
+# Resource limits
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Health probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  failureThreshold: 3
+
+# ConfigMap values (non-sensitive)
+config:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  HOST: "0.0.0.0"
+  PORT: "8000"
+
+# Secret values (sensitive - should be overridden or use external secrets)
+secrets:
+  DATABASE_URL: ""  # Required: Neon PostgreSQL connection string
+  BETTER_AUTH_SECRET: ""  # Required: JWT secret (must match frontend)
+  OPENAI_API_KEY: ""  # Required: OpenAI API key for AI agents
+  GOOGLE_OAUTH_CLIENT_ID: ""  # Required: Google OAuth
+  GOOGLE_OAUTH_CLIENT_SECRET: ""  # Required: Google OAuth
+
+# Pod annotations
+podAnnotations: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
