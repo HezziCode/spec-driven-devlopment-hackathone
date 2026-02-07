@@ -65,8 +65,14 @@ function AuthContent() {
         return;
       }
 
-      if (formData.password.length < 6) {
-        setError('Password must be at least 6 characters');
+      if (formData.password.length < 8) {
+        setError('Password must be at least 8 characters');
+        setLoading(false);
+        return;
+      }
+
+      if (formData.username.length < 3) {
+        setError('Username must be at least 3 characters');
         setLoading(false);
         return;
       }

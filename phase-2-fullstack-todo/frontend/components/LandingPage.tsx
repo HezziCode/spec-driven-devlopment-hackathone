@@ -57,17 +57,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ handleAuthAction }) => {
 
   return (
     <div className="flex flex-col items-center justify-start p-4 text-center w-full max-w-full overflow-x-hidden">
-      {/* Floating Chat Button */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <button
-          onClick={handleChatNavigation}
-          className="p-4 rounded-full bg-cyan-600 hover:bg-cyan-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110"
-          aria-label="Open chat assistant"
-          title="Chat with AI Assistant"
-        >
-          <MessageCircle className="w-6 h-6" />
-        </button>
-      </div>
+      {/* Floating Chat Button - REMOVED because we have StickyChatbotButton in layout.tsx */}
+      {/* Duplicate button removed to fix duplicate chatbot icon issue */}
 
       {/* 1. Hero Section */}
       <section className="flex flex-col items-center justify-center pt-16 pb-16 w-full max-w-full px-4 min-h-[calc(100vh-64px)]">
@@ -80,7 +71,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ handleAuthAction }) => {
               Ride the{" "}
               <span className="relative inline-block">
                 <span className="bg-gradient-to-r from-teal-300 to-cyan-300 bg-clip-text text-transparent">
-                  TaskFlow
+                  ChatTask
                 </span>
 
                 {/* Curved SVG underline */}

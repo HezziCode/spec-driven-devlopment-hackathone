@@ -30,6 +30,7 @@ from services.chatkit_service import (
 from services.chatkit_service import (
     sync_thread,
 )
+from middleware.rate_limiter_simple import rate_limit_chat
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ router = APIRouter(prefix="/api", tags=["Custom Chat"])
 
 @router.post(
     "/users/{user_id}/chat/messages",
+    dependencies=[Depends(rate_limit_chat)],
     summary="Send chat message with streaming response",
     description="Send a message to the AI and receive a streaming response via Server-Sent Events.",
     responses={
@@ -61,6 +63,9 @@ async def send_message(
     Uses Server-Sent Events (SSE) to stream response tokens as they are generated.
     Supports continuing existing threads or creating new ones.
     """
+    # Log chat request
+    logger.info(f"Chat request: user={user_id}, thread={chat_request.thread_id}, msg={chat_request.message[:50]}")
+
     # Verify user_id matches authenticated user
     if str(user_id) != str(current_user.get("id") or current_user.get("sub")):
         raise HTTPException(status_code=403, detail="Not authorized")

@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: chattask
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: chattaskacr.azurecr.io/frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NEXT_PUBLIC_API_URL
+          value: "https://api.chat-task.site"
+        - name: BETTER_AUTH_URL
+          value: "https://api.chat-task.site"
+        - name: NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID
+          value: "322039376696-qel1r5o6hu0uvl97b28jq9cvvv1hkoqi.apps.googleusercontent.com"
+        - name: BETTER_AUTH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: auth-secret
+              key: better-auth-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: chattask
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3000
+  selector:
+    app: frontend

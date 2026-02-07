@@ -28,6 +28,8 @@ dependencies = [
     "sse-starlette>=2.0.0",
     "openai>=2.14.0",
     "google-oauth2-tool>=0.0.3",
+    "gunicorn>=21.0.0",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]

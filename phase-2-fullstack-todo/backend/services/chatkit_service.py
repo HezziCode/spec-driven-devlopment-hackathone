@@ -132,16 +132,31 @@ class ChatKitService:
                 # Extract text content from SSE events for accumulation
                 if event.startswith("data: "):
                     content = event[6:].strip()
-                    if content and not content.startswith("{"):  # Skip JSON events
-                        response_content += content
+                    if content:
+                        # Parse JSON events like {"content": "..."}
+                        if content.startswith("{") and content.endswith("}"):
+                            try:
+                                import json
+                                data = json.loads(content)
+                                if "content" in data:
+                                    response_content += data["content"]
+                            except json.JSONDecodeError:
+                                # Fallback: use raw content if not valid JSON
+                                response_content += content
+                        else:
+                            # Handle non-JSON content directly
+                            response_content += content
                 yield event
 
             # Step 5: Save assistant response to database
             if response_content:
                 self._save_message(thread_id, user_id, "assistant", response_content)
+                logger.info(f"Assistant message saved to thread {thread_id}")
 
                 # Step 6: Update thread metadata
                 self._update_thread_metadata(thread_id, response_content)
+            else:
+                logger.warning(f"No response content to save for thread {thread_id}")
 
         except ValueError as e:
             # Thread limit or validation error
@@ -291,7 +306,7 @@ class ChatKitService:
         self.session.refresh(message)
         # Ensure the message is properly synchronized with the database
         self.session.expunge(message)
-        logger.info(f"Saved {role} message to thread {thread_id}")
+        logger.debug(f"Saved {role} message {message.id} to thread {thread_id}")
         return message
 
     def _load_thread_messages(self, thread_id: str) -> list[dict]:

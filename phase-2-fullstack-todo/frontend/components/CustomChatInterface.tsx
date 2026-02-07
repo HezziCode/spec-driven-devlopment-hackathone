@@ -6,12 +6,42 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageSquare, Plus, Trash2, Send, User, Bot, Menu } from 'lucide-react';
-import { getAuthToken } from '@/lib/auth';
-import { useAuth } from '@/lib/auth';
+import { useState, useEffect, useRef } from 'react';
+import { MessageSquare, Plus, Trash2, Send, User, Bot, Menu, X, Loader2 } from 'lucide-react';
+import { getAuthToken, useAuth } from '@/lib/auth';
 import { parseSSEStream } from '@/lib/sse-parser';
-import type { ParsedSSEChunk } from '@/types/sse';
+import Link from 'next/link';
+
+// Helper function to render message content with task links
+const renderMessageWithTaskLink = (content: string) => {
+  // Patterns that indicate a task was created/added
+  const taskPatterns = [
+    /added.*to your tasks/i,
+    /created.*task/i,
+    /done!.*added/i,
+    /I've added/i,
+    /task.*created/i,
+    /successfully added/i,
+  ];
+
+  const isTaskMessage = taskPatterns.some(pattern => pattern.test(content));
+
+  if (isTaskMessage) {
+    return (
+      <>
+        {content}{' '}
+        <Link
+          href="/tasks#task-list"
+          className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 font-medium transition-colors"
+        >
+          See here →
+        </Link>
+      </>
+    );
+  }
+
+  return content;
+};
 
 interface Message {
   id: string;
@@ -79,15 +109,19 @@ const loadThreadState = (userId: string): string | null => {
 export function CustomChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Controls input disable state & general loading UI
+  const [isStreamingReply, setIsStreamingReply] = useState(false); // Tracks active bot streaming
   const [threads, setThreads] = useState<ThreadWithNameUpdate[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [editingThreadNameId, setEditingThreadNameId] = useState<string | null>(null);
   const [tempThreadName, setTempThreadName] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [threadsLoading, setThreadsLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageCountRef = useRef<number>(0);
+  const prevIsStreamingReply = useRef<boolean>(false);
   const { session } = useAuth();
 
   // Mobile detection for responsive layout
@@ -121,10 +155,22 @@ export function CustomChatInterface() {
 
   // Load messages when thread changes
   useEffect(() => {
-    if (currentThreadId) {
+    // Should proceed with DB fetch if:
+    // 1. Thread ID exists
+    // 2. We are NOT currently receiving a streamed response for this thread
+    //    (to prevent overwriting live partial data with stale DB data)
+    if (currentThreadId && !isStreamingReply) {
+      // Determine delay based on streaming state transition
+      const wasStreaming = prevIsStreamingReply.current;
+      const isPostStreamingTransition = wasStreaming && !isStreamingReply;
+      const delay = isPostStreamingTransition ? 500 : 100; // Longer delay for post-streaming to allow backend persistence
+
+      console.log(`⏱️ Scheduling DB fetch: ${isPostStreamingTransition ? 'post-streaming' : 'normal'} (delay: ${delay}ms)`);
+
       // Load messages from backend for existing thread with retry logic
       const loadWithRetry = async () => {
         try {
+          setMessagesLoading(true);
           await loadThreadMessages(currentThreadId);
         } catch (error) {
           console.error('Failed to load thread messages:', error);
@@ -137,19 +183,25 @@ export function CustomChatInterface() {
               saveThreadState(session.user.id, null);
             }
           }
+        } finally {
+          setMessagesLoading(false);
         }
       };
 
       const timer = setTimeout(() => {
         loadWithRetry();
-      }, 100); // Small delay to handle timing issues
+      }, delay);
 
       return () => clearTimeout(timer);
-    } else {
+    } else if (!currentThreadId) {
       // No thread selected, clear messages
       setMessages([]);
     }
-  }, [currentThreadId, session?.user.id]);
+
+    // Update the previous streaming state ref for next comparison
+    prevIsStreamingReply.current = isStreamingReply;
+    // We intentionally include all dependencies to ensure state correctness
+  }, [currentThreadId, session?.user.id, isStreamingReply]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -164,6 +216,7 @@ export function CustomChatInterface() {
     if (!session?.user.id) return;
 
     try {
+      setThreadsLoading(true);
       const token = getAuthToken();
       if (!token) throw new Error('No authentication token');
 
@@ -186,7 +239,84 @@ export function CustomChatInterface() {
       setThreads(formattedThreads);
     } catch (error) {
       console.error('Error loading threads:', error);
+    } finally {
+      setThreadsLoading(false);
     }
+  };
+
+  const reconcileMessages = (dbMessages: Message[], localMessages: Message[]): Message[] => {
+    console.log('🔍 Reconciling:', {
+      dbCount: dbMessages.length,
+      localCount: localMessages.length,
+      dbMessages: dbMessages.map(m => ({ id: m.id, content: m.content.substring(0, 50) + '...' })),
+      localMessages: localMessages.map(m => ({ id: m.id, content: m.content.substring(0, 50) + '...' }))
+    });
+
+    // Strategy: DB is source of truth, but we preserve optimistic local messages
+    const merged: Message[] = [];
+    const seenIds = new Set<string>();
+
+    // Helper to check if message ID looks like a DB ID (not a frontend optimistic ID)
+    const isLikelyDbId = (id: string): boolean => {
+      // DB IDs are usually UUIDs or numbers, not our pattern
+      // Our optimistic IDs: msg_TIMESTAMP_COUNT, msg_TIMESTAMP_COUNT_assistant, error_TIMESTAMP_RANDOM
+      // Return true if NOT one of our patterns
+      return !(
+        id.startsWith('msg_') ||
+        id.startsWith('error_')
+      );
+    };
+
+    // Create a lookup of DB messages by content fingerprint for deduplication
+    const dbContentMap = new Map<string, Message>();
+    for (const dbMsg of dbMessages) {
+      // Simple fingerprint: role + first 100 chars of content
+      const fingerprint = `${dbMsg.role}:${dbMsg.content.substring(0, 100)}`;
+      if (!dbContentMap.has(fingerprint)) {
+        dbContentMap.set(fingerprint, dbMsg);
+      }
+    }
+
+    // First pass: Add all DB messages (source of truth)
+    for (const dbMsg of dbMessages) {
+      if (!seenIds.has(dbMsg.id)) {
+        merged.push(dbMsg);
+        seenIds.add(dbMsg.id);
+      }
+    }
+
+    // Second pass: Add local optimistic messages that don't duplicate DB content
+    for (const localMsg of localMessages) {
+      // Skip if already added (by ID)
+      if (seenIds.has(localMsg.id)) {
+        console.log(`📝 Skipping duplicate local message by ID: ${localMsg.id}`);
+        continue;
+      }
+
+      // Check if DB has a message with similar content
+      const fingerprint = `${localMsg.role}:${localMsg.content.substring(0, 100)}`;
+      const similarDbMsg = dbContentMap.get(fingerprint);
+
+      if (similarDbMsg) {
+        // DB has equivalent content - prefer DB message (already added in first pass)
+        console.log(`📝 Skipping local message (DB has equivalent): ${localMsg.id} -> ${similarDbMsg.id}`);
+        continue;
+      }
+
+      // This is a truly new optimistic message (or DB hasn't caught up yet)
+      merged.push(localMsg);
+      seenIds.add(localMsg.id);
+    }
+
+    // Sort by timestamp to maintain chronological order
+    merged.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+    console.log('✅ Reconciliation result:', {
+      finalCount: merged.length,
+      merged: merged.map(m => ({ id: m.id, role: m.role, content: m.content.substring(0, 30) + '...' }))
+    });
+
+    return merged;
   };
 
   const loadThreadMessages = async (threadId: string) => {
@@ -250,14 +380,28 @@ export function CustomChatInterface() {
       const data = await response.json();
       // Check if messages exist in the response
       const messagesData = data.messages || [];
-      const formattedMessages = messagesData.map((msg: any) => ({
+      const dbMessages = messagesData.map((msg: any) => ({
         id: msg.id || `msg_${Date.now()}_${Math.random()}`,
         role: msg.role,
         content: msg.content,
         timestamp: new Date(msg.created_at || Date.now()),
       }));
 
-      setMessages(formattedMessages);
+      // Instead of replacing, reconcile DB messages with current local messages
+      const reconciledMessages = reconcileMessages(dbMessages, messages);
+
+      // Only update if reconciliation actually changed something
+      const hasSameLength = reconciledMessages.length === messages.length;
+      const hasSameContent = hasSameLength && reconciledMessages.every((msg, i) =>
+        msg.id === messages[i]?.id && msg.content === messages[i]?.content
+      );
+
+      if (!hasSameContent) {
+        console.log('🔄 Updating messages after reconciliation');
+        setMessages(reconciledMessages);
+      } else {
+        console.log('✅ No changes needed after reconciliation');
+      }
     } catch (error) {
       console.error('Error loading thread messages:', error);
       throw error; // Re-throw so the useEffect can handle it
@@ -359,6 +503,7 @@ export function CustomChatInterface() {
     setMessages(newMessages);
     setInputValue('');
     setIsLoading(true);
+    setIsStreamingReply(true);
 
     try {
       // Send message to backend - let backend create thread if needed
@@ -598,6 +743,7 @@ export function CustomChatInterface() {
       ]);
     } finally {
       setIsLoading(false);
+      setIsStreamingReply(false);
     }
   };
 
@@ -719,101 +865,128 @@ export function CustomChatInterface() {
           w-64 bg-slate-900/90 backdrop-blur-md border-r border-slate-700/50 flex flex-col
           transition-transform duration-300 ease-out
         `}>
-          <div className="p-4 border-b border-slate-700/50">
+          <div className="p-4 border-b border-slate-700/50 flex justify-between items-center">
             <button
               onClick={createNewThread}
-              className="w-full flex items-center justify-between px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors duration-200"
+              className="flex-1 flex items-center justify-between px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors duration-200 mr-2"
             >
               <span className="font-medium">New Chat</span>
               <Plus className="w-4 h-4" />
             </button>
+            {isMobile && (
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
+                aria-label="Close sidebar"
+              >
+                <X className="w-6 h-6 text-slate-400" />
+              </button>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto p-2">
             <div className="space-y-1">
-              {threads.map((thread) => (
-                <div
-                  key={thread.id}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors duration-200 group min-h-[44px] ${
-                    currentThreadId === thread.id ? 'bg-slate-800/50' : 'hover:bg-slate-800/50'
-                  }`}
-                  onClick={() => {
-                    setCurrentThreadId(thread.id);
-                    // Save thread state to localStorage
-                    if (session?.user.id) {
-                      saveThreadState(session.user.id, thread.id);
-                    }
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center truncate">
-                      <MessageSquare className="w-4 h-4 text-cyan-400 mr-2 flex-shrink-0" />
-                      {editingThreadNameId === thread.id ? (
-                        <input
-                          type="text"
-                          value={tempThreadName}
-                          onChange={(e) => setTempThreadName(e.target.value)}
-                          onBlur={() => saveEditedThreadName(thread.id)}
-                          onKeyDown={(e) => handleThreadNameKeyDown(e, thread.id)}
-                          className="text-sm bg-slate-700 text-slate-200 px-1 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-cyan-500 flex-1 min-w-0"
-                          autoFocus
-                        />
-                      ) : (
-                        <span
-                          className="text-sm text-slate-200 truncate cursor-pointer hover:bg-slate-700/50 px-1 rounded"
-                          onDoubleClick={() => startEditingThreadName(thread.id, thread.name)}
-                        >
-                          {thread.name}
-                        </span>
-                      )}
+              {threadsLoading ? (
+                // Loading Skeleton for Threads
+                Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="p-3 rounded-lg min-h-[44px] animate-pulse">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="h-4 bg-slate-700/50 rounded w-24"></div>
+                      <div className="h-3 bg-slate-700/50 rounded w-3"></div>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      {editingThreadNameId === thread.id && (
-                        <>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              saveEditedThreadName(thread.id);
-                            }}
-                            className="p-1 hover:bg-slate-600 rounded"
-                          >
-                            <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              cancelEditingThreadName();
-                            }}
-                            className="p-1 hover:bg-slate-600 rounded"
-                          >
-                            <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                          </button>
-                        </>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteThread(thread.id);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-700 rounded transition-all duration-200"
-                      >
-                        <Trash2 className="w-3 h-3 text-slate-400" />
-                      </button>
-                    </div>
+                    <div className="h-3 bg-slate-700/50 rounded w-3/4"></div>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1 truncate">{thread.lastMessage}</p>
-                </div>
-              ))}
+                ))
+              ) : (
+                threads.map((thread) => (
+                  <div
+                    key={thread.id}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors duration-200 group min-h-[44px] ${
+                      currentThreadId === thread.id ? 'bg-slate-800/50' : 'hover:bg-slate-800/50'
+                    }`}
+                    onClick={() => {
+                      // Clear messages immediately when switching threads
+                      setMessages([]);
+                      setCurrentThreadId(thread.id);
+                      // Save thread state to localStorage
+                      if (session?.user.id) {
+                        saveThreadState(session.user.id, thread.id);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center truncate">
+                        <MessageSquare className="w-4 h-4 text-cyan-400 mr-2 flex-shrink-0" />
+                        {editingThreadNameId === thread.id ? (
+                          <input
+                            type="text"
+                            value={tempThreadName}
+                            onChange={(e) => setTempThreadName(e.target.value)}
+                            onBlur={() => saveEditedThreadName(thread.id)}
+                            onKeyDown={(e) => handleThreadNameKeyDown(e, thread.id)}
+                            className="text-sm bg-slate-700 text-slate-200 px-1 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-cyan-500 flex-1 min-w-0"
+                            autoFocus
+                          />
+                        ) : (
+                          <span
+                            className="text-sm text-slate-200 truncate cursor-pointer hover:bg-slate-700/50 px-1 rounded"
+                            onDoubleClick={() => startEditingThreadName(thread.id, thread.name)}
+                          >
+                            {thread.name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        {editingThreadNameId === thread.id && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                saveEditedThreadName(thread.id);
+                              }}
+                              className="p-1 hover:bg-slate-600 rounded"
+                            >
+                              <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                              </svg>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                cancelEditingThreadName();
+                              }}
+                              className="p-1 hover:bg-slate-600 rounded"
+                            >
+                              <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                              </svg>
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteThread(thread.id);
+                          }}
+                          className={`${
+                            isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                          } p-1 hover:bg-slate-700 rounded transition-all duration-200`}
+                          aria-label="Delete thread"
+                        >
+                          <Trash2 className="w-3 h-3 text-slate-400" />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1 truncate">{thread.lastMessage}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
           <div className="p-4 border-t border-slate-700/50">
             <div className="text-xs text-slate-500 text-center">
-              TaskWave AI Assistant
+              ChatTask AI Assistant
             </div>
           </div>
         </div>
@@ -831,14 +1004,19 @@ export function CustomChatInterface() {
               <MessageSquare className="w-5 h-5 text-cyan-400" />
             </button>
             <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-400">
-              TaskFlow AI Assistant
+              ChatTask AI Assistant
             </h1>
           </div>
         )}
 
         {/* Messages Container */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 h-full w-full max-w-full overflow-x-hidden">
-          {messages.length === 0 ? (
+          {messagesLoading ? (
+             <div className="flex flex-col items-center justify-center h-full">
+               <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mb-2" />
+               <p className="text-slate-400">Loading conversation...</p>
+             </div>
+          ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <MessageSquare className="w-12 h-12 text-cyan-400/50 mb-4" />
               <h3 className="text-lg font-semibold text-slate-300 mb-2">Start a conversation</h3>
@@ -867,7 +1045,9 @@ export function CustomChatInterface() {
                     )}
                     <div className="flex-1">
                       <div className="text-sm text-slate-200 whitespace-pre-wrap">
-                        {message.content}
+                        {message.role === 'assistant'
+                          ? renderMessageWithTaskLink(message.content)
+                          : message.content}
                       </div>
                     </div>
                     {message.role === 'user' && (
@@ -906,7 +1086,7 @@ export function CustomChatInterface() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Message TaskWave AI..."
+              placeholder="Message ChatTask AI..."
               className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent resize-none"
               rows={2}
               disabled={isLoading}
@@ -920,7 +1100,7 @@ export function CustomChatInterface() {
             </button>
           </div>
           <p className="text-xs text-slate-500 mt-2 text-center">
-            TaskWave AI can help you manage your tasks. Be specific with your requests!
+            ChatTask AI can help you manage your tasks. Be specific with your requests!
           </p>
         </div>
       </div>

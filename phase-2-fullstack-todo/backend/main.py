@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # Load environment variables FIRST before any other imports that might need them
 load_dotenv()
@@ -96,6 +98,7 @@ import mcp_server.tools  # noqa: F401
 from mcp_server.server import mcp
 from middleware.auth_middleware import verify_jwt_middleware
 from routes import auth, tasks, users
+from services.chat_service import start_persistence_worker, stop_persistence_worker
 
 # Load environment variables
 load_dotenv()
@@ -123,6 +126,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"Log level: {os.getenv('LOG_LEVEL', 'INFO')}")
     logger.info(f"Frontend URL: {os.getenv('FRONTEND_URL', 'http://localhost:3000')}")
 
+    # Start persistence worker for chat messages
+    await start_persistence_worker()
+
     # Verify database connection
     try:
         from db import engine
@@ -140,6 +146,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Shutting down application...")
+    stop_persistence_worker()
 
 
 app = FastAPI(
@@ -151,6 +158,49 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Add custom validation error handler for user-friendly messages
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Custom handler for validation errors (422).
+    Returns user-friendly messages instead of technical Pydantic errors.
+    """
+    errors = exc.errors()
+
+    # Build user-friendly error messages
+    friendly_errors = []
+    for error in errors:
+        field = error.get("loc", [])[-1] if error.get("loc") else "field"
+        error_type = error.get("type", "")
+
+        # Map technical errors to friendly messages
+        if "string_too_short" in error_type:
+            min_length = error.get("ctx", {}).get("min_length", "required")
+            friendly_errors.append(f"{field} must be at least {min_length} characters long")
+        elif "value_error.email" in error_type or "string_pattern_mismatch" in error_type:
+            friendly_errors.append(f"{field} must be a valid email address")
+        elif "missing" in error_type:
+            friendly_errors.append(f"{field} is required")
+        else:
+            msg = error.get("msg", "Invalid value")
+            friendly_errors.append(f"{field}: {msg}")
+
+    error_message = ". ".join(friendly_errors) + "."
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": error_message,
+            "message": error_message,
+            "code": "VALIDATION_ERROR",
+            "details": errors  # Keep technical details for debugging
+        }
+    )
+
+# Add ProxyHeadersMiddleware to trust X-Forwarded-Proto from nginx ingress
+# This ensures request.url.scheme is 'https' when behind TLS-terminating proxy
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
+
 # Add CORS middleware (must be before other middleware)
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
 app.add_middleware(
@@ -160,6 +210,11 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://secure-todoz.vercel.app",
+        "http://40.64.64.9",
+        "http://chat-task.site",
+        "http://www.chat-task.site",
+        "https://chat-task.site",
+        "https://www.chat-task.site",
     ],  # Development and production
     allow_credentials=True,
     allow_methods=["*"],

@@ -22,11 +22,12 @@ from services.task_service import (
     update_task,
     validate_task_data,
 )
+from middleware.rate_limiter_simple import rate_limit_task_write, rate_limit_task_delete
 
 router = APIRouter(prefix="/users/{user_id}", tags=["tasks"])
 
 
-@router.post("/tasks", response_model=TaskResponse, status_code=201)
+@router.post("/tasks", response_model=TaskResponse, status_code=201, dependencies=[Depends(rate_limit_task_write)])
 async def create_user_task(
     user_id: UUID,
     task_data: TaskCreate,
@@ -39,13 +40,24 @@ async def create_user_task(
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
         raise HTTPException(
-            status_code=403, detail="Not authorized to create tasks for this user"
+            status_code=403,
+            detail={
+                "error": "You can only create tasks for your own account",
+                "code": "FORBIDDEN"
+            }
         )
 
     # Validate task data
     validation_errors = validate_task_data(task_data)
     if validation_errors:
-        raise HTTPException(status_code=422, detail={"errors": validation_errors})
+        error_message = ". ".join(validation_errors)
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": f"Please fix the following: {error_message}",
+                "code": "VALIDATION_ERROR"
+            }
+        )
 
     try:
         task = create_task(session, task_data, user_id)
@@ -54,7 +66,13 @@ async def create_user_task(
         task_dict["tags"] = [tag.tag_name for tag in task.tags] if task.tags else []
         return TaskResponse(**task_dict)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creating task: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Unable to create task. Please try again.",
+                "code": "SERVER_ERROR"
+            }
+        )
 
 
 @router.get("/tasks", response_model=TaskListResponse)
@@ -78,7 +96,11 @@ async def get_user_tasks_list(
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
         raise HTTPException(
-            status_code=403, detail="Not authorized to view tasks for this user"
+            status_code=403,
+            detail={
+                "error": "You can only view your own tasks",
+                "code": "FORBIDDEN"
+            }
         )
 
     try:
@@ -108,7 +130,13 @@ async def get_user_tasks_list(
             tasks=task_responses, total=total, page=page, limit=limit
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving tasks: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Unable to retrieve tasks. Please try again later.",
+                "code": "SERVER_ERROR"
+            }
+        )
 
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
@@ -124,13 +152,23 @@ async def get_user_task(
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
         raise HTTPException(
-            status_code=403, detail="Not authorized to view tasks for this user"
+            status_code=403,
+            detail={
+                "error": "You can only view your own tasks",
+                "code": "FORBIDDEN"
+            }
         )
 
     try:
         task = get_task_by_id(session, task_id, user_id)
         if not task:
-            raise HTTPException(status_code=404, detail="Task not found")
+            raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "Task not found or you don't have permission to access it",
+                "code": "NOT_FOUND"
+            }
+        )
         # Convert TaskTag objects to tag name strings
         task_dict = task.model_dump()
         task_dict["tags"] = [tag.tag_name for tag in task.tags] if task.tags else []
@@ -138,10 +176,16 @@ async def get_user_task(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving task: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Unable to retrieve task. Please try again later.",
+                "code": "SERVER_ERROR"
+            }
+        )
 
 
-@router.put("/tasks/{task_id}", response_model=TaskResponse)
+@router.put("/tasks/{task_id}", response_model=TaskResponse, dependencies=[Depends(rate_limit_task_write)])
 async def update_user_task(
     user_id: UUID,
     task_id: UUID,
@@ -155,13 +199,23 @@ async def update_user_task(
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
         raise HTTPException(
-            status_code=403, detail="Not authorized to update tasks for this user"
+            status_code=403,
+            detail={
+                "error": "You can only update your own tasks",
+                "code": "FORBIDDEN"
+            }
         )
 
     try:
         task = update_task(session, task_id, task_data, user_id)
         if not task:
-            raise HTTPException(status_code=404, detail="Task not found")
+            raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "Task not found or you don't have permission to access it",
+                "code": "NOT_FOUND"
+            }
+        )
 
         # Refresh to ensure tags are loaded from database
         session.refresh(task)
@@ -190,10 +244,16 @@ async def update_user_task(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error updating task: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Unable to update task. Please try again later.",
+                "code": "SERVER_ERROR"
+            }
+        )
 
 
-@router.patch("/tasks/{task_id}", response_model=TaskResponse)
+@router.patch("/tasks/{task_id}", response_model=TaskResponse, dependencies=[Depends(rate_limit_task_write)])
 async def partial_update_user_task(
     user_id: UUID,
     task_id: UUID,
@@ -207,13 +267,23 @@ async def partial_update_user_task(
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
         raise HTTPException(
-            status_code=403, detail="Not authorized to update tasks for this user"
+            status_code=403,
+            detail={
+                "error": "You can only update your own tasks",
+                "code": "FORBIDDEN"
+            }
         )
 
     try:
         task = update_task(session, task_id, task_data, user_id)
         if not task:
-            raise HTTPException(status_code=404, detail="Task not found")
+            raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "Task not found or you don't have permission to access it",
+                "code": "NOT_FOUND"
+            }
+        )
 
         # Refresh to ensure tags are loaded from database
         session.refresh(task)
@@ -242,10 +312,16 @@ async def partial_update_user_task(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error updating task: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Unable to update task. Please try again later.",
+                "code": "SERVER_ERROR"
+            }
+        )
 
 
-@router.delete("/tasks/{task_id}")
+@router.delete("/tasks/{task_id}", dependencies=[Depends(rate_limit_task_delete)])
 async def delete_user_task(
     user_id: UUID,
     task_id: UUID,
@@ -258,15 +334,31 @@ async def delete_user_task(
     # Verify that the user_id in the path matches the authenticated user
     if str(user_id) != current_user_id:
         raise HTTPException(
-            status_code=403, detail="Not authorized to delete tasks for this user"
+            status_code=403,
+            detail={
+                "error": "You can only delete your own tasks",
+                "code": "FORBIDDEN"
+            }
         )
 
     try:
         success = delete_task(session, task_id, user_id)
         if not success:
-            raise HTTPException(status_code=404, detail="Task not found")
+            raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "Task not found or you don't have permission to access it",
+                "code": "NOT_FOUND"
+            }
+        )
         return {"message": "Task deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error deleting task: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Unable to delete task. Please try again later.",
+                "code": "SERVER_ERROR"
+            }
+        )

@@ -1,21 +1,20 @@
 <!--
 Sync Impact Report:
-Version change: 3.0.0 → 3.1.0 (minor update: add Phase IV local Kubernetes deployment guidance)
+Version change: 3.1.0 → 3.2.0 (minor update: add Phase V Cloud Deployment & Kafka/Dapr architecture)
 Modified principles:
-  - None
+  - None (principles preserved, architecture expanded)
 Added sections:
-  - Phase IV: Local Kubernetes Deployment (Minikube + Helm + kubectl-ai/kagent + Docker Desktop/Gordon)
+  - Phase V: Advanced Cloud Deployment (Azure/GKE, Kafka, Dapr, Event-Driven Architecture)
 Enhanced sections:
-  - Phase Evolution (Phase IV clarified)
-  - Technology Stack table (Phase IV deployment/tooling rows)
-Removed sections: None (all Phase II/III content preserved)
+  - Phase Evolution (Phase V added)
+  - Technology Stack table (Phase V deployment/tooling rows added: Dapr, Kafka, AKS/GKE)
+Removed sections: None
 Templates requiring updates:
-- .specify/templates/plan-template.md ✅ compatible (no changes needed)
-- .specify/templates/spec-template.md ✅ compatible (no changes needed)
-- .specify/templates/tasks-template.md ✅ compatible (no changes needed)
-- .specify/templates/commands/*.md ⚠ pending review for Phase IV deployment commands
+- .specify/templates/plan-template.md ✅ compatible
+- .specify/templates/spec-template.md ✅ compatible
+- .specify/templates/tasks-template.md ✅ compatible
 Follow-up TODOs:
-- Create Phase IV deployment spec using /sp.specify when ready
+- Create Phase V deployment spec using /sp.specify
 -->
 # TaskWave Todo Application Constitution
 
@@ -28,6 +27,7 @@ This constitution governs the multi-phase evolution of the TaskWave Todo applica
 - **Phase II**: Full-stack web app with persistence (deployed)
 - **Phase III**: AI-powered chatbot interface with MCP server (current)
 - **Phase IV**: Local Kubernetes deployment (Minikube + Helm + kubectl-ai/kagent + Docker Desktop/Gordon)
+- **Phase V**: Advanced Cloud Deployment (Azure/GKE, Kafka, Dapr, CI/CD)
 
 ## Core Principles
 
@@ -77,6 +77,14 @@ The project must use the following technology stack exactly as specified:
 | Kubernetes | Minikube | Latest | Local Kubernetes cluster for deployment | IV |
 | Kubernetes Packaging | Helm Charts | Latest | Package and deploy app on Kubernetes | IV |
 | AI DevOps | kubectl-ai, kagent | Latest | AI-assisted Kubernetes operations | IV |
+| Event Streaming | Kafka / Redpanda / Event Hubs | Latest | Event-driven architecture (Reminders, Sync, Logs) | V |
+| Microservices Runtime | Dapr | Latest | Pub/Sub, State, Secrets, Service Invocation | V |
+| Cloud Provider | Azure (AKS) | Latest | Production Kubernetes Environment | V |
+| Container Registry | Azure Container Registry (ACR) | Latest | Container image storage | V |
+| Database (Cloud) | Azure Database for PostgreSQL | Latest | Managed PostgreSQL database | V |
+| Cache (Cloud) | Azure Cache for Redis | Latest | Managed Redis cache | V |
+| CI/CD | GitHub Actions | Latest | Automated testing and deployment pipeline | V |
+| IaC | Terraform | Latest | Infrastructure as Code | V |
 
 ### Project Structure (Monorepo)
 ```
@@ -151,6 +159,8 @@ phase-2-fullstack-todo/
 │   ├── tests/                    # Pytest tests
 │   ├── pyproject.toml            # Python dependencies (UV)
 │   └── .env                      # Environment variables (not committed)
+├── dapr-components/              # Dapr component configurations (Phase V)
+├── k8s/                          # Kubernetes manifests & Helm charts (Phase IV/V)
 ├── docker-compose.yml            # Container orchestration (optional)
 └── README.md                     # Project documentation
 
@@ -564,6 +574,67 @@ No manual coding allowed.
 - If Docker AI (Gordon) is unavailable in your region/tier, use standard Docker CLI commands.
 - Phase IV is deployment-focused; application functionality is the Phase III Todo Chatbot.
 
+## Phase V: Advanced Cloud Deployment
+
+### Objective
+Implement advanced features and deploy to production-grade Kubernetes (AKS/GKE/OKE). Introduce Event-Driven Architecture with Kafka (via Redpanda) and distributed application runtime (Dapr).
+
+### Part A: Advanced Features
+- Implement Recursive Tasks, Due Dates & Reminders
+- Add event-driven architecture with Kafka/Redpanda
+- Implement Dapr for distributed runtime (Pub/Sub, State, Secrets)
+
+### Part B: Local Deployment (Advanced)
+- Deploy Dapr on Minikube (Full Dapr: Pub/Sub, State, Bindings, Secrets)
+- Self-hosted Kafka (Strimzi/Redpanda) on Minikube
+
+### Part C: Cloud Deployment (Azure Focused)
+- Deploy to Azure Kubernetes Service (AKS)
+- Use Azure Container Registry (ACR) for images
+- Use Azure Database for PostgreSQL (Flexible Server)
+- Use Azure Cache for Redis
+- Use Dapr Sidecars for microservices communication
+- Use Azure Event Hubs (Kafka compatible) or self-hosted Kafka
+- **CI/CD**: Setup GitHub Actions pipeline
+- **IaC**: Provision infrastructure with Terraform
+- **Deployment**: Manage Kubernetes resources with Helm
+- **Observability**: Configure Azure Monitor and Container Insights
+
+### Architecture: Dapr + Kafka
+```
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                              KUBERNETES CLUSTER                                       │
+│                                                                                       │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────────────────────────────────────┐ │
+│  │  Frontend   │   │  Chat API   │   │              KAFKA CLUSTER                  │ │
+│  │  Service    │──▶│  + MCP      │──▶│  ┌─────────────┐  ┌─────────────────────┐  │ │
+│  └─────────────┘   │  Tools      │   │  │ task-events │  │ reminders           │  │ │
+│                    └──────┬──────┘   │  └─────────────┘  └─────────────────────┘  │ │
+│                           │          └──────────┬────────────────────┬────────────┘ │
+│                           │                     │                    │              │
+│                           ▼                     ▼                    ▼              │
+│                    ┌─────────────┐   ┌─────────────────┐   ┌─────────────────┐     │
+│                    │   Neon DB   │   │ Recurring Task  │   │  Notification   │     │
+│                    │  (External) │   │    Service      │   │    Service      │     │
+│                    └─────────────┘   └─────────────────┘   └─────────────────┘     │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Workflow with Dapr:**
+> Dapr abstracts infrastructure. App talks to Dapr Sidecar via HTTP (localhost:3500), Dapr talks to Kafka/DB.
+- **Pub/Sub**: Publish events to `task-events` and `reminders` topics
+- **Bindings**: Schedule reminders via Dapr Bindings/Jobs (replacing Cron)
+- **Secrets**: Fetch API keys safely from Kubernetes Secrets via Dapr
+
+### Integration Guide
+1. **Recursion/Reminders**:
+   - `task_created` -> Kafka -> `RecurringTaskService`
+   - `due_date_set` -> Kafka -> `NotificationService`
+2. **Audit Logging**:
+   - All CRUD ops -> Kafka -> `AuditService`
+3. **Real-time Sync**:
+   - Updates -> Kafka -> Websocket Service -> Clients
+
 ## Governance
 
 This constitution is immutable and supersedes all other development practices for this project. Any changes to these principles require an Architectural Decision Record (ADR) with proper justification and approval. All pull requests and code reviews must verify compliance with these principles. Development teams must follow Spec-Kit-Plus guidance for runtime development and maintain consistency with these core principles.
@@ -656,6 +727,13 @@ Create an AI-powered chatbot interface for managing todos through natural langua
 │                 │     │  ┌────────────────────────────────────────┐  │────▶│                 │
 │                 │     │  │         MCP Server                     │  │     │                 │
 │                 │     │  │  (MCP Tools for Task Operations)       │  │◀────│                 │
+│                 │     │  └────────────────────────────────────────┘  │     │                 │
+│                 │     │                  │                           │     │                 │
+│                 │     │                  │                           │     │                 │
+│                 │     │                  ▼                           │     │                 │
+│                 │     │  ┌────────────────────────────────────────┐  │     │                 │
+│                 │     │  │         Messages DB                    │  │     │                 │
+│                 │     │  │ (Phase III: Dapr can replace this)     │  │     │                 │
 │                 │     │  └────────────────────────────────────────┘  │     │                 │
 └─────────────────┘     └──────────────────────────────────────────────┘     └─────────────────┘
 ```
@@ -911,4 +989,4 @@ Phase III is complete when ALL of the following are verified:
 
 ---
 
-**Version**: 3.1.0 | **Ratified**: 2025-12-12 | **Last Amended**: 2026-01-06
+**Version**: 3.2.0 | **Ratified**: 2025-12-12 | **Last Amended**: 2026-01-24

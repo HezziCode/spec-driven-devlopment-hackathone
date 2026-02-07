@@ -4,6 +4,7 @@ This service manages conversation persistence, message history,
 and agent execution for natural language task management.
 """
 
+import asyncio
 import logging
 import os
 from datetime import datetime
@@ -18,6 +19,19 @@ from db import get_session
 from models import Conversation, Message
 
 logger = logging.getLogger(__name__)
+
+# Persistence is now synchronous - no background worker needed
+# Functions kept for backward compatibility but are no-ops
+
+
+async def start_persistence_worker():
+    """No-op: Persistence is now synchronous and guaranteed."""
+    logger.info("Persistence is synchronous - no background worker needed")
+
+
+def stop_persistence_worker():
+    """No-op: Persistence is now synchronous and guaranteed."""
+    logger.info("Persistence worker not needed - using synchronous persistence")
 
 
 async def create_conversation(user_id: str) -> str:
@@ -76,10 +90,75 @@ async def get_conversation_messages(
         raise
 
 
+def _store_message_sync(
+    conversation_id: str, user_id: str, role: str, content: str
+) -> bool:
+    """Synchronously store a message in the database with retry.
+
+    This is the CONTRACT-BASED guarantee: message WILL be persisted
+    before this function returns, or an exception is raised.
+
+    Args:
+        conversation_id: UUID of the conversation
+        user_id: UUID of the user
+        role: 'user' or 'assistant'
+        content: Message content
+
+    Returns:
+        bool: True if persisted successfully
+
+    Raises:
+        RuntimeError: If persistence fails after all retries
+    """
+    import time
+
+    max_retries = 3
+    last_error = None
+
+    for attempt in range(max_retries):
+        try:
+            with get_session() as session:
+                message = Message(
+                    conversation_id=conversation_id,
+                    user_id=user_id,
+                    role=role,
+                    content=content,
+                )
+                session.add(message)
+                session.commit()
+                logger.info(
+                    f"PERSISTED {role} message for conversation {conversation_id} "
+                    f"(attempt {attempt + 1})"
+                )
+                return True
+        except Exception as e:
+            last_error = e
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # 1s, 2s
+                logger.warning(
+                    f"Persistence failed (attempt {attempt + 1}), "
+                    f"retrying in {wait_time}s: {e}"
+                )
+                time.sleep(wait_time)
+            else:
+                logger.error(
+                    f"CRITICAL: Failed to persist {role} message after "
+                    f"{max_retries} attempts: {e}"
+                )
+
+    # This is a critical failure - raise to signal the issue
+    raise RuntimeError(
+        f"Failed to persist {role} message after {max_retries} attempts: {last_error}"
+    )
+
+
 async def store_message(
     conversation_id: str, user_id: str, role: str, content: str
 ) -> None:
     """Store a user or assistant message in the database.
+
+    CONTRACT: This function GUARANTEES the message is persisted before returning.
+    Both user and assistant messages are stored synchronously to ensure durability.
 
     Args:
         conversation_id: UUID of the conversation
@@ -89,21 +168,22 @@ async def store_message(
 
     Returns:
         None
+
+    Raises:
+        RuntimeError: If message cannot be persisted after retries
     """
-    try:
-        with get_session() as session:
-            message = Message(
-                conversation_id=conversation_id,
-                user_id=user_id,
-                role=role,
-                content=content,
-            )
-            session.add(message)
-            session.commit()
-            logger.debug(f"Stored {role} message for conversation {conversation_id}")
-    except Exception as e:
-        logger.error(f"Error storing message: {e}")
-        raise
+    # Run synchronous persistence in thread pool to not block event loop
+    # but WAIT for completion before returning
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None,
+        _store_message_sync,
+        conversation_id,
+        user_id,
+        role,
+        content,
+    )
+    logger.debug(f"Guaranteed persistence complete for {role} message")
 
 
 async def process_message(
@@ -162,8 +242,10 @@ async def process_message(
                     }
                 )
 
-        # Store assistant response
+        # Store assistant response with GUARANTEED persistence
+        # This is synchronous and will NOT return until persisted
         await store_message(conversation_id, user_id, "assistant", result.final_output)
+        logger.info(f"Assistant message GUARANTEED persisted for conversation {conversation_id}")
 
         # Update conversation timestamp
         try:

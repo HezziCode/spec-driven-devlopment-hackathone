@@ -35,6 +35,7 @@ from services.oauth_service import (
     verify_google_token,
     verify_linking_token,
 )
+from middleware.rate_limiter_simple import rate_limit_login, rate_limit_signup, rate_limit_auth_general
 
 # Load environment variables
 load_dotenv()
@@ -162,6 +163,7 @@ def error_response(status_code: int, message: str, code: str) -> JSONResponse:
     status_code=status.HTTP_201_CREATED,
     summary="Register new user",
     description="Create a new user account with username, email, and password. Returns user data and JWT token.",
+    dependencies=[Depends(rate_limit_signup)],
 )
 async def signup_user(
     request: SignupRequest, session: Session = Depends(get_session)
@@ -252,6 +254,7 @@ async def signup_user(
     status_code=status.HTTP_200_OK,
     summary="Authenticate user",
     description="Authenticate user with email and password. Returns user data and JWT token.",
+    dependencies=[Depends(rate_limit_login)],
 )
 async def login_user(
     request: LoginRequest, session: Session = Depends(get_session)
@@ -395,10 +398,15 @@ async def google_oauth_callback(
         token_json = token_response.json()
 
         if "id_token" not in token_json:
+            # Log the actual Google error for debugging
+            google_error = token_json.get("error", "unknown")
+            google_error_desc = token_json.get("error_description", "No description")
+            print(f"Google OAuth Error: {google_error} - {google_error_desc}")
+            print(f"Redirect URI used: {token_data['redirect_uri']}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
-                    "error": "Failed to get ID token from Google",
+                    "error": f"Failed to get ID token from Google: {google_error} - {google_error_desc}",
                     "code": "TOKEN_EXCHANGE_FAILED",
                 },
             )
@@ -495,6 +503,7 @@ async def google_oauth_callback(
     status_code=status.HTTP_200_OK,
     summary="Initiate Google OAuth",
     description="Redirect user to Google OAuth consent page for authentication.",
+    dependencies=[Depends(rate_limit_auth_general)],
 )
 async def google_oauth_init(request: Request) -> RedirectResponse:
     """

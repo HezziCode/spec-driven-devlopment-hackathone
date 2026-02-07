@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { ListTodo, Heart, Code, Users, Globe, User } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -77,7 +78,7 @@ const AboutPage = () => {
                 {/* Premium animated heading */}
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-tight text-white max-w-3xl mx-auto relative">
                   <span className="relative inline-block">
-                    About TaskFlow<br />
+                    About ChatTask<br />
                     Our Mission to Simplify
                     {/* Curved SVG underline */}
                     <svg
@@ -87,14 +88,14 @@ const AboutPage = () => {
                     >
                       <path
                         d="M2,5 Q50,10 98,5"
-                        stroke="url(#taskflow-about-grad)"
+                        stroke="url(#chattask-about-grad)"
                         strokeWidth="2"
                         fill="none"
                         strokeLinecap="round"
                         opacity="0.8"
                       />
                       <defs>
-                        <linearGradient id="taskflow-about-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <linearGradient id="chattask-about-grad" x1="0%" y1="0%" x2="100%" y2="0%">
                           <stop offset="0%" stopColor="#5eead4" />
                           <stop offset="100%" stopColor="#67e8f9" />
                         </linearGradient>
@@ -116,7 +117,7 @@ const AboutPage = () => {
                 <div className="space-y-6">
                   <h2 className="text-3xl font-bold text-white">Our Journey</h2>
                   <p className="text-slate-300 leading-relaxed">
-                    TaskFlow was born from a simple frustration: existing task managers were either too complex with overwhelming features,
+                    ChatTask was born from a simple frustration: existing task managers were either too complex with overwhelming features,
                     or too simplistic to handle real-world workflows. We set out to create something different—a tool that stays out
                     of your way while helping you accomplish more.
                   </p>
@@ -137,7 +138,7 @@ const AboutPage = () => {
                   <div className="aspect-video bg-gradient-to-br from-slate-700/40 to-slate-800/40 rounded-xl flex items-center justify-center">
                     <div className="text-center">
                       <ListTodo className="w-16 h-16 text-cyan-400 mx-auto mb-4" />
-                      <p className="text-slate-400">TaskFlow Interface Preview</p>
+                      <p className="text-slate-400">ChatTask Interface Preview</p>
                     </div>
                   </div>
                 </div>
@@ -184,16 +185,19 @@ const AboutPage = () => {
               <div className="flex justify-center">
                 <div className="bg-slate-800/30 backdrop-blur-sm rounded-2xl p-8 border border-slate-700/30 text-center max-w-md w-full">
                   <div className="w-32 h-32 mx-auto mb-6 rounded-full overflow-hidden border-4 border-cyan-500/30">
-                    <img
-                      src="/man.png"
-                      alt="Creator"
-                      className="w-full h-full object-cover"
+                    <Image
+                      src="/creator.png"
+                      alt="Huzaifa - Creator"
+                      width={128}
+                      height={128}
+                      className="w-full h-full object-cover rounded-full"
+                      priority
                     />
                   </div>
                   <h3 className="text-2xl font-bold text-white mb-2">Huzaifa</h3>
                   <p className="text-cyan-400 font-medium mb-4">Founder & Developer</p>
                   <p className="text-slate-300">
-                    Passionate developer who created TaskFlow to help people manage their tasks more effectively.
+                    Passionate developer who created ChatTask to help people manage their tasks more effectively.
                   </p>
                 </div>
               </div>

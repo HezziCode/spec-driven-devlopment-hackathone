@@ -164,7 +164,17 @@ export const useToast = () => {
 
   const addToast = (message: string, type: ToastType, duration?: number) => {
     const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type, duration }]);
+
+    // Prevent duplicate toasts with same message within 1 second
+    setToasts((prev) => {
+      const recentDuplicate = prev.find(
+        (t) => t.message === message && t.type === type
+      );
+      if (recentDuplicate) {
+        return prev; // Don't add duplicate
+      }
+      return [...prev, { id, message, type, duration }];
+    });
   };
 
   const removeToast = (id: string) => {

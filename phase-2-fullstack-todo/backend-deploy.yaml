@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: chattask
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: chattaskacr.azurecr.io/backend:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: url
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: openai-key
+        - name: BETTER_AUTH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: auth-secret
+              key: better-auth-secret
+        - name: GOOGLE_OAUTH_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: google-oauth-secret
+              key: google-oauth-client-id
+        - name: GOOGLE_OAUTH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: google-oauth-secret
+              key: google-oauth-client-secret
+        - name: BETTER_AUTH_URL
+          value: "https://api.chat-task.site"
+        - name: API_BASE_URL
+          value: "https://api.chat-task.site"
+        - name: FRONTEND_URL
+          value: "https://chat-task.site"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: chattask
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8000
+  selector:
+    app: backend

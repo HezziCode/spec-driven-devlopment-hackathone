@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from middleware.auth_middleware import get_current_user
 from schemas.chat import ChatRequest, ChatResponse
 from services.chat_service import process_message
+# from middleware.rate_limiter import limit_ai_agent
 
 router = APIRouter()
 

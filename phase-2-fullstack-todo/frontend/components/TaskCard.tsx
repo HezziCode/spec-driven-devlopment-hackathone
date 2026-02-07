@@ -37,17 +37,22 @@ const TaskCard: React.FC<TaskCardProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Handle completion toggle
-  const handleToggleComplete = () => {
-    if (onToggleComplete) {
+  // Handle completion toggle with double-click prevention
+  const handleToggleComplete = async () => {
+    if (onToggleComplete && !isProcessing) {
+      setIsProcessing(true);
       onToggleComplete(id, !completed);
+      // Reset after a short delay to allow the action to complete
+      setTimeout(() => setIsProcessing(false), 500);
     }
   };
 
-  // Handle delete confirmation
+  // Handle delete confirmation with double-click prevention
   const handleDelete = () => {
-    if (onDelete) {
+    if (onDelete && !isProcessing) {
+      setIsProcessing(true);
       onDelete(id);
       setShowConfirmDelete(false);
     }
@@ -147,12 +152,13 @@ const TaskCard: React.FC<TaskCardProps> = ({
           <div className="mt-auto space-y-2">
             <button
                 onClick={handleToggleComplete}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 cursor-pointer
+                disabled={isProcessing}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed
                 ${completed
                     ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 backdrop-blur-sm'
                     : 'bg-gradient-to-r from-cyan-600/20 to-blue-600/20 hover:shadow-sm hover:shadow-cyan-500/10 text-cyan-300 border border-cyan-500/30 backdrop-blur-sm'}`}
             >
-                {completed ? <><Check className="w-3 h-3" /> Completed</> : 'Mark Complete'}
+                {isProcessing ? 'Processing...' : completed ? <><Check className="w-3 h-3" /> Completed</> : 'Mark Complete'}
             </button>
 
             <div className="text-[10px] text-slate-500 flex justify-between items-center pt-1">
@@ -197,9 +203,10 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="px-3 py-1.5 rounded-lg bg-red-600/80 text-white text-xs font-medium hover:bg-red-600 transition-colors cursor-pointer"
+                    disabled={isProcessing}
+                    className="px-3 py-1.5 rounded-lg bg-red-600/80 text-white text-xs font-medium hover:bg-red-600 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Delete
+                    {isProcessing ? 'Deleting...' : 'Delete'}
                   </button>
                 </div>
               </div>

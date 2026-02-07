@@ -97,12 +97,30 @@ frontend/.env*
 *.db
 *.db-journal
 
+# Kubernetes Secrets (CRITICAL - contains sensitive data!)
+secret.yaml
+secrets.yaml
+*-secret.yaml
+registry-secret.yaml
+cluster-issuer.yaml
+
 # Environment specific
 .env.local
 .env.production
 .env.local.production
 .env.staging
 .env.local.staging
-settings.local.json"infrastructure/helm/templates/secrets.yaml" 
+
+# Kubernetes Secrets (NEVER commit these!)
+secrets.yaml
 secret.yaml
-"minikube-linux-amd64" 
+*-secret.yaml
+registry-secret.yaml
+
+# Azure/Cloud specific
+*.kubeconfig
+.kube/
+temp.b64
+
+# Minikube
+minikube-linux-amd64 

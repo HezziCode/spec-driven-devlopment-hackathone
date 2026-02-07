@@ -56,8 +56,8 @@ const BlogPage = () => {
     },
     {
       id: 2,
-      title: "TaskFlow's Journey: From Concept to Launch",
-      excerpt: "A behind-the-scenes look at how we built TaskFlow from the ground up with user experience as our guiding principle.",
+      title: "ChatTask's Journey: From Concept to Launch",
+      excerpt: "A behind-the-scenes look at how we built ChatTask from the ground up with user experience as our guiding principle.",
       author: "Michael Chen",
       date: "December 10, 2024",
       readTime: "7 min read",
@@ -77,7 +77,7 @@ const BlogPage = () => {
     {
       id: 4,
       title: "Why We Chose a Minimalist Approach to Task Management",
-      excerpt: "Exploring the philosophy behind TaskFlow's design decisions and how simplicity leads to better outcomes.",
+      excerpt: "Exploring the philosophy behind ChatTask's design decisions and how simplicity leads to better outcomes.",
       author: "Emma Thompson",
       date: "November 28, 2024",
       readTime: "6 min read",

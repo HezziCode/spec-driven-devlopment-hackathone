@@ -10,7 +10,6 @@ import { ListTodo, LogOut, ArrowRight, Bell, Command, Flame, Target } from 'luci
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { ChatbotIcon } from '@/components/ChatbotIcon';
 import TaskCard from '@/components/TaskCard';
 import TaskForm from '@/components/TaskForm';
 import TaskFilters from '@/components/TaskFilters';
@@ -586,14 +585,14 @@ const TasksPageContent = () => {
                       >
                         <path
                           d="M2,5 Q50,10 98,5"
-                          stroke="url(#taskflow-grad)"
+                          stroke="url(#chattask-grad)"
                           strokeWidth="2"
                           fill="none"
                           strokeLinecap="round"
                           opacity="0.8"
                         />
                         <defs>
-                          <linearGradient id="taskflow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <linearGradient id="chattask-grad" x1="0%" y1="0%" x2="100%" y2="0%">
                             <stop offset="0%" stopColor="#5eead4" />
                             <stop offset="100%" stopColor="#67e8f9" />
                           </linearGradient>
@@ -697,7 +696,7 @@ const TasksPageContent = () => {
               />
 
               {/* Task List */}
-              <div className="mb-8 bg-slate-800/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 border border-slate-700/20">
+              <div id="task-list" className="mb-8 bg-slate-800/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 border border-slate-700/20">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                   <h2 className="text-xl sm:text-2xl font-bold text-white">
                     {statusFilter === 'all' ? 'All Tasks' : statusFilter === 'active' ? 'Active Tasks' : 'Completed Tasks'}
@@ -835,8 +834,6 @@ const TasksPageContent = () => {
             </div>
           </main>
 
-          {/* Floating Chatbot Icon */}
-          <ChatbotIcon />
 
           <Footer />
         </div>

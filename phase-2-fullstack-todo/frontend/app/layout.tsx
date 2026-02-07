@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, DM_Sans } from "next/font/google";
 import "./globals.css";
+import StickyChatbotButton from "@/components/ChatbotIcon";
 
 // IBM Plex Sans for UI/body text - extremely legible and professional
 const ibmPlexSans = IBM_Plex_Sans({
@@ -20,7 +21,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "TaskFlow - Modern Task Management",
+  title: "ChatTask - Modern Task Management",
   description: "The minimalist, modern way to manage your tasks",
 };
 
@@ -42,6 +43,9 @@ export default function RootLayout({
         className={`${ibmPlexSans.variable} ${dmSans.variable} antialiased bg-slate-900 overflow-x-hidden`}
       >
         {children}
+
+        {/* Sticky chatbot button - appears on all pages except /chat */}
+        <StickyChatbotButton />
       </body>
     </html>
   );

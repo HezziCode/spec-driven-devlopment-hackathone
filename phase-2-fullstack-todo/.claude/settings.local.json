@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(uv run ruff:*)"
+      "Bash(uv run ruff:*)",
+      "Bash(find:*)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh:*)",
+      "Bash(.specify/scripts/bash/setup-tasks.sh:*)",
+      "Bash(: mv \":/mnt/d/Side Projects/giaic-hackathone/phase-2-fullstack-todo/specs/026-fix-chat-task-ui/tasks.md\" \"/mnt/d/Side Projects/giaic-hackathone/phase-2-fullstack-todo/specs/026-fix-chat-task-ui/tasks.md\")",
+      "Bash(sudo fuser:*)",
+      "Bash(kubectl get:*)"
     ]
   }
 }

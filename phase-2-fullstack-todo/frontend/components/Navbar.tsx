@@ -47,7 +47,7 @@ const Navbar: React.FC<NavbarProps> = () => {
             <div className="flex items-center space-x-2 cursor-pointer">
               <ListTodo className="w-6 h-6 text-cyan-600" />
               <span className="text-xl font-extrabold tracking-wide text-white transition-colors">
-                TaskFlow
+                ChatTask
               </span>
             </div>
           </a>

@@ -42,7 +42,7 @@ export default function Footer({ variant = 'default' }: FooterProps) {
           {/* Copyright */}
           <div className="text-center">
             <p className="text-xs text-slate-500">
-              {currentYear} TaskFlow. All rights reserved.
+              {currentYear} ChatTask. All rights reserved.
             </p>
           </div>
         </div>
@@ -59,7 +59,7 @@ export default function Footer({ variant = 'default' }: FooterProps) {
           {/* Brand */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center space-x-2">
-              <span className="text-xl font-extrabold text-white">TaskFlow</span>
+              <span className="text-xl font-extrabold text-white">ChatTask</span>
             </Link>
             <p className="text-sm text-slate-400">
               The modern way to manage your tasks.
@@ -127,7 +127,7 @@ export default function Footer({ variant = 'default' }: FooterProps) {
         {/* Bottom Copyright */}
         <div className="pt-8 border-t border-slate-700/50">
           <p className="text-center text-sm text-slate-500">
-            {currentYear} TaskFlow. All rights reserved.
+            {currentYear} ChatTask. All rights reserved.
           </p>
         </div>
       </div>

@@ -56,8 +56,7 @@ class ChatKitServer:
             thread = self.thread_manager.create_thread(user_id, title=message[:50])
             thread_id = str(thread.id)
 
-        # Add user message to thread (FIXED: added missing user_id parameter)
-        self.thread_manager.add_message(thread_id, user_id, "user", message)
+        # No persistence here - handled by chatkit_service.py
 
         # Get conversation history (last 20 messages)
         history = self.thread_manager.get_recent_messages(thread_id)
@@ -95,11 +94,8 @@ class ChatKitServer:
                         # FIXED: Use proper SSE format with JSON-encoded content
                         yield f"data: {json.dumps({'content': delta})}\n\n"
 
-            # Add assistant message to thread (FIXED: added missing user_id parameter)
-            if assistant_response:
-                self.thread_manager.add_message(
-                    thread_id, user_id, "assistant", assistant_response
-                )
+            # No persistence here - handled by chatkit_service.py
+            # Assistant message saved in chatkit_service after streaming
 
             # Send completion event with thread_id and message metadata
             yield "event: done\n"

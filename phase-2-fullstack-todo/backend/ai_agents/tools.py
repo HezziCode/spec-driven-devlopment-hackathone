@@ -15,6 +15,61 @@ from .schemas import TaskInfo, TaskListResult, TaskOperationResult
 logger = logging.getLogger(__name__)
 
 
+def _generate_fallback_tags(title: str) -> list[str]:
+    """Generate fallback tags based on task title keywords."""
+    title_lower = title.lower()
+    tags = []
+
+    # Category detection
+    category_keywords = {
+        "shopping": ["buy", "purchase", "shop", "order", "groceries", "store"],
+        "work": ["report", "meeting", "email", "project", "deadline", "presentation", "office"],
+        "personal": ["call", "visit", "meet", "friend", "family", "mom", "dad", "birthday"],
+        "health": ["doctor", "gym", "exercise", "workout", "medicine", "appointment", "dentist"],
+        "finance": ["pay", "bill", "bank", "transfer", "budget", "invoice", "tax"],
+        "study": ["exam", "study", "learn", "course", "homework", "assignment", "research"],
+        "home": ["clean", "fix", "repair", "organize", "laundry", "cook"],
+        "travel": ["book", "flight", "hotel", "trip", "vacation", "pack"],
+    }
+
+    for category, keywords in category_keywords.items():
+        if any(kw in title_lower for kw in keywords):
+            tags.append(category)
+            break
+
+    # Action type detection
+    action_keywords = {
+        "errands": ["buy", "pick", "get", "drop"],
+        "communication": ["call", "email", "text", "message", "contact"],
+        "planning": ["plan", "schedule", "organize", "prepare"],
+        "tasks": ["finish", "complete", "do", "make", "create"],
+    }
+
+    for action, keywords in action_keywords.items():
+        if any(kw in title_lower for kw in keywords):
+            tags.append(action)
+            break
+
+    # Ensure at least 2 tags
+    if len(tags) < 2:
+        tags.append("general")
+    if len(tags) < 2:
+        tags.append("todo")
+
+    return tags[:3]  # Max 3 tags
+
+
+def _generate_fallback_description(title: str) -> str:
+    """Generate a simple fallback description from the title."""
+    # Capitalize first letter and ensure it ends properly
+    desc = title.strip()
+    if desc:
+        desc = desc[0].upper() + desc[1:] if len(desc) > 1 else desc.upper()
+        if not desc.endswith((".", "!", "?")):
+            desc = f"Task: {desc}"
+    return desc or "Task created via chat"
+
+
 @function_tool
 async def create_task(
     ctx: RunContextWrapper[AgentContext],
@@ -25,34 +80,46 @@ async def create_task(
 ) -> TaskOperationResult:
     """Create a new task for the user from chat conversation.
 
+    IMPORTANT AUTO-ENRICHMENT RULES (MANDATORY):
+    1. If tags are None/empty, YOU MUST generate at least 2 relevant tags based on task context
+    2. If description is empty, YOU MUST generate a short, meaningful description
+    3. NEVER create a task with empty description or no tags
+
     Args:
         ctx: RunContextWrapper containing AgentContext with user_id and conversation_id
         title: Task title (1-200 characters)
-        description: Optional task description
-        tags: Optional list of tags for the task
+        description: Optional task description - generate meaningful one if empty
+        tags: Optional list of tags for the task - generate at least 2 if empty
         priority: Task priority (low, medium, high, critical) - defaults to medium
 
     Returns:
         TaskOperationResult with task_id, status, and title
     """
+    # Fallback tag generation if LLM doesn't provide tags
+    final_tags = tags if tags and len(tags) >= 1 else _generate_fallback_tags(title)
+    final_description = description if description else _generate_fallback_description(title)
+
+    target_url = f"{ctx.context.mcp_base_url}/api/ai/tasks"
+    payload = {
+        "user_id": ctx.context.user_id,
+        "title": title,
+        "description": final_description,
+        "tags": final_tags,
+        "priority": priority,
+        "source": "chat",
+        "thread_id": ctx.context.conversation_id,
+    }
     logger.info(
-        f"create_task: Creating task '{title}' for user {ctx.context.user_id} from chat with tags={tags}"
+        f"🔥 create_task: Calling {target_url} for user {ctx.context.user_id}"
     )
+    logger.info(f"🔥 create_task: Payload = {payload}")
+
     # Call direct AI tools endpoint for task creation
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    # Timeout: 60s for production (Render cold start), localhost is fast
+    async with httpx.AsyncClient(timeout=60.0) as client:
         try:
-            response = await client.post(
-                f"{ctx.context.mcp_base_url}/api/ai/tasks",
-                json={
-                    "user_id": ctx.context.user_id,
-                    "title": title,
-                    "description": description,
-                    "tags": tags or [],
-                    "priority": priority,
-                    "source": "chat",  # Mark as chat-created
-                    "thread_id": ctx.context.conversation_id,  # Link to chat thread
-                },
-            )
+            response = await client.post(target_url, json=payload)
+            logger.info(f"🔥 create_task: Response status = {response.status_code}")
             response.raise_for_status()
 
             if response.status_code == 200:
@@ -70,13 +137,14 @@ async def create_task(
                 logger.error(f"create_task: {error_msg}")
                 raise RuntimeError(error_msg)
         except httpx.HTTPStatusError as e:
-            logger.error(f"create_task: HTTP error - {e}")
+            logger.error(f"🔥 create_task: HTTP STATUS ERROR - {e}")
+            logger.error(f"🔥 create_task: Response body = {e.response.text if e.response else 'N/A'}")
             raise RuntimeError(f"HTTP error creating task: {e}")
         except httpx.RequestError as e:
-            logger.error(f"create_task: Request error - {e}")
+            logger.error(f"🔥 create_task: REQUEST ERROR (connection issue) - {type(e).__name__}: {e}")
             raise RuntimeError(f"Request error creating task: {e}")
         except Exception as e:
-            logger.error(f"create_task: Unexpected error - {e}")
+            logger.error(f"🔥 create_task: UNEXPECTED ERROR - {type(e).__name__}: {e}")
             raise RuntimeError(f"Error creating task: {e}")
 
 

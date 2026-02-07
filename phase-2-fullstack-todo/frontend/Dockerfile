@@ -1,3 +1,6 @@
+# syntax=docker/dockerfile:1
+# check=skip=SecretsUsedInArgOrEnv
+
 # Stage 1: Install dependencies
 FROM node:22-alpine AS deps
 
@@ -25,10 +28,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
 # Build arguments for Next.js public environment variables
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_API_URL=https://api.chat-task.site
 ARG NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=322039376696-qel1r5o6hu0uvl97b28jq9cvvv1hkoqi.apps.googleusercontent.com
-ARG BETTER_AUTH_SECRET=84b356160c76718e721f056915416bb10010533b2f834c056a7f9b91d2badb5d
-ARG BETTER_AUTH_URL=http://localhost:3000
+ARG BETTER_AUTH_SECRET
+ARG BETTER_AUTH_URL=https://api.chat-task.site
 
 # Set environment variables
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL

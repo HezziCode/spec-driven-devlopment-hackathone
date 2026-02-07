@@ -19,7 +19,7 @@ import type {
 import { getAuthToken } from './auth';
 
 // ===== Configuration =====
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // ===== Core API Request Function =====
 
@@ -79,6 +79,24 @@ const apiRequest = async <T>(
       const isErrorObject = (data: unknown): data is Record<string, unknown> => {
         return typeof data === 'object' && data !== null;
       };
+
+      // Handle 422 Validation Error with user-friendly messages
+      if (response.status === 422 && isErrorObject(errorData)) {
+        // FastAPI validation errors come in detail array format
+        if (Array.isArray(errorData.detail)) {
+          const validationErrors = errorData.detail.map((err: any) => {
+            const field = err.loc?.[err.loc.length - 1] || 'field';
+            const msg = err.msg || 'Invalid value';
+            return `${field}: ${msg}`;
+          }).join(', ');
+          errorMessage = `Please check your input: ${validationErrors}`;
+        } else if (typeof errorData.detail === 'string') {
+          errorMessage = errorData.detail;
+        } else {
+          errorMessage = 'Please check your input and try again.';
+        }
+        errorCode = 'VALIDATION_ERROR';
+      }
 
       if (isErrorObject(errorData)) {
         // Handle nested format: {detail: {error: "...", code: "..."}}
