@@ -1,14 +1,163 @@
-# TaskWave - Full Stack Todo Application
+# Phase 2: Full-Stack Todo Web Application
 
-TaskWave is a full-stack todo web application built with FastAPI (backend), Next.js (frontend), and PostgreSQL (database). The application features user authentication, task management with priorities and tags, and a modern responsive UI.
+> **Evolution from Phase 1** - Transforming console app into a production web application
 
-## Features
+**Live Demo (Azure Cloud):** [chat-task.site](https://chat-task.site)
+**Live Demo (Vercel):** [secure-todoz.vercel.app](https://secure-todoz.vercel.app)
 
-- **User Authentication**: Secure authentication using Better Auth with JWT tokens
-- **Task Management**: Create, read, update, delete tasks with priorities and tags
-- **Advanced Filtering**: Filter tasks by status, priority, tags, and search
-- **Responsive UI**: Modern interface built with Next.js and Tailwind CSS
-- **Containerized**: Ready for Docker and Kubernetes deployment
+**🔗 See all phases:** [Main Project README](../giaic-hackathone/README.md)
+
+---
+
+## 🎯 Phase 2 Overview
+
+This phase transforms the Phase 1 console application into a full-stack web application with:
+- Multi-user authentication system
+- Persistent database storage (PostgreSQL)
+- RESTful API backend
+- Modern responsive web UI
+- Production deployment capabilities
+
+### Evolution from Phase 1
+- ❌ In-memory storage → ✅ PostgreSQL database
+- ❌ Single user → ✅ Multi-user with authentication
+- ❌ Console interface → ✅ Modern web UI
+- ❌ Local only → ✅ Cloud-deployed
+
+---
+
+## ✨ Key Features
+
+### Authentication & Security
+- 🔐 JWT-based authentication
+- 🔑 Email/password signup and login
+- 🌐 Google OAuth integration
+- 🛡️ Rate limiting (abuse protection)
+- 👤 User data isolation
+
+### Task Management
+- ✅ Full CRUD operations (Create, Read, Update, Delete)
+- 🎯 Task priorities (low, medium, high, critical)
+- 🏷️ Tags and categories
+- 🔍 Advanced search and filtering
+- 📊 Sort by date, priority, or status
+- ✏️ Rich task descriptions
+
+### User Experience
+- 🎨 Modern, responsive UI with Tailwind CSS
+- 🌙 Dark mode optimized
+- 📱 Mobile-friendly design
+- ⚡ Real-time updates
+- 🔔 User-friendly error messages (English + Urdu)
+- 🚫 Duplicate action prevention
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Auth**: Better Auth with JWT plugin
+- **State**: React hooks
+
+### Backend
+- **Framework**: FastAPI
+- **ORM**: SQLModel
+- **Database**: PostgreSQL (Neon Serverless)
+- **Auth**: JWT tokens + Google OAuth
+- **Validation**: Pydantic
+
+### DevOps
+- **Containerization**: Docker
+- **Orchestration**: Kubernetes
+- **Cloud**: Azure AKS
+- **Domain**: Namecheap (chat-task.site)
+- **CDN**: Vercel (backup deployment)
+
+---
+
+## 📋 API Endpoints
+
+### Authentication
+```
+POST   /auth/signup          - Register new user
+POST   /auth/login           - Login with email/password
+GET    /auth/google          - Initiate Google OAuth
+GET    /auth/callback/google - Google OAuth callback
+```
+
+### Tasks
+```
+GET    /users/{user_id}/tasks              - List all tasks (with filters)
+POST   /users/{user_id}/tasks              - Create new task
+GET    /users/{user_id}/tasks/{task_id}    - Get specific task
+PUT    /users/{user_id}/tasks/{task_id}    - Update task (full)
+PATCH  /users/{user_id}/tasks/{task_id}    - Update task (partial)
+DELETE /users/{user_id}/tasks/{task_id}    - Delete task
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 22+
+- Python 3.11+
+- PostgreSQL (or use Neon/Docker)
+- Docker (optional)
+
+### Local Development
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/HezziCode/spec-driven-devlopment-hackathone.git
+   cd giaic-hackathone/phase-2-fullstack-todo
+   ```
+
+2. **Backend Setup**
+   ```bash
+   cd backend
+
+   # Create virtual environment
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+   # Install dependencies
+   pip install -r requirements.txt
+
+   # Create .env file with:
+   # DATABASE_URL=postgresql://user:pass@host/db
+   # BETTER_AUTH_SECRET=your-secret-key
+   # GOOGLE_OAUTH_CLIENT_ID=your-client-id
+   # GOOGLE_OAUTH_CLIENT_SECRET=your-client-secret
+
+   # Run server
+   uvicorn main:app --reload
+   ```
+
+3. **Frontend Setup**
+   ```bash
+   cd frontend
+
+   # Install dependencies
+   npm install
+
+   # Create .env.local with:
+   # NEXT_PUBLIC_API_URL=http://localhost:8000
+   # NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=your-client-id
+   # BETTER_AUTH_SECRET=your-secret-key
+   # BETTER_AUTH_URL=http://localhost:8000
+
+   # Run development server
+   npm run dev
+   ```
+
+4. **Access the application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8000
+   - API Documentation: http://localhost:8000/docs
 
 ## Development Setup
 
@@ -179,4 +328,29 @@ npm run dev
 
 ---
 
-_If you encounter issues, check that your `.env` files are present and correctly configured for both backend and frontend._
+## 🔄 Project Evolution
+
+**Phase 1 (Console App)** → **Phase 2 (You are here)** → Phase 3 (AI Chatbot) → Phase 4 (Kubernetes) → Phase 5 (Cloud Production)
+
+### What's Next?
+- **Phase 3**: AI-powered chatbot with MCP server integration
+- **Phase 4**: Container orchestration and local Kubernetes deployment
+- **Phase 5**: Production cloud deployment on Azure AKS
+
+---
+
+## 📄 License
+
+MIT License - Open source and free to use.
+
+---
+
+## 👨‍💻 Developer
+
+**Huzaifa**
+- GitHub: [@HezziCode](https://github.com/HezziCode)
+- Project: [GIAIC Hackathon - Spec-Driven Development](https://github.com/HezziCode/spec-driven-devlopment-hackathone)
+
+---
+
+**⭐ Star the repo if you find it helpful!**

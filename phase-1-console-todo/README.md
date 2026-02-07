@@ -1,6 +1,26 @@
-# Console Todo App
+# Phase 1: Console Todo App
 
-A command-line todo application built with Python 3.13 using standard library only. Features in-memory storage with no persistence.
+> **Part of ChatTask Evolution** - The foundation of a journey from console to cloud
+
+A command-line todo application built with Python 3.13 using standard library only. This is Phase 1 of the GIAIC Hackathon project, demonstrating core todo functionality before evolving into a full-stack web application.
+
+**🔗 See the full project:** [ChatTask - All Phases](../README.md)
+
+**🌐 Live Production App:** [chat-task.site](https://chat-task.site)
+
+## 🎯 Phase 1 Overview
+
+This console app serves as the foundation for the ChatTask project. It implements core CRUD operations and task management logic that will later be evolved into a cloud-native web application.
+
+### What This Phase Demonstrates
+- ✅ Core todo functionality (CRUD operations)
+- ✅ Clean code architecture with separation of concerns
+- ✅ In-memory data storage
+- ✅ Input validation and error handling
+- ✅ Test-driven development
+
+### Evolution Path
+**Phase 1 (You are here)** → Phase 2 (Web App + DB) → Phase 3 (AI Chatbot) → Phase 4 (Docker + K8s) → Phase 5 (Cloud Production)
 
 ## Features
 
