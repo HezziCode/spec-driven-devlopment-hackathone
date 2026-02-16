@@ -295,7 +295,7 @@ app.include_router(ai_tools.router)
 app.mount("/mcp", mcp.http_app())
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
     """Root endpoint - publicly accessible."""
     return {
@@ -306,7 +306,7 @@ def read_root():
     }
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
     """Health check endpoint - publicly accessible."""
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
